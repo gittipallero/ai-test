@@ -181,6 +181,17 @@ const Game: React.FC = () => {
        }
     };
 
+    const resetGame = () => {
+        setGrid(INITIAL_MAP.map(row => [...row]));
+        setPacman({ x: 9, y: 15 });
+        setGhosts(INITIAL_GHOSTS);
+        setDirection(null);
+        setNextDirection(null);
+        setScore(0);
+        setGameOver(false);
+        setPowerModeTime(0);
+    };
+
     return (
         <div className="game-board" style={{ width: COLS * BLOCK_SIZE, height: ROWS * BLOCK_SIZE }}>
             {grid.map((row, y) => (
@@ -209,7 +220,14 @@ const Game: React.FC = () => {
                 }}></div>
             ))}
             <div className="score-display">SCORE: {score}</div>
-            {gameOver && <div className="game-over">GAME OVER</div>}
+            {gameOver && (
+                <div className="game-over">
+                    <div>GAME OVER</div>
+                    <button onClick={resetGame} style={{ marginTop: '20px', padding: '10px 20px', fontSize: '18px', cursor: 'pointer' }}>
+                        Start New Game
+                    </button>
+                </div>
+            )}
         </div>
     );
 };
