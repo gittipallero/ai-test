@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { INITIAL_MAP, ROWS, COLS, BLOCK_SIZE, INITIAL_GHOSTS } from './constants';
+import { INITIAL_MAP, ROWS, COLS, BLOCK_SIZE, INITIAL_GHOSTS, INITIAL_PACMAN } from './constants';
 import type { Direction, Position, GhostEntity } from './constants';
 import './Game.css';
 
 const Game: React.FC = () => {
     // Deep copy map to handle state (eating dots)
     const [grid, setGrid] = useState<number[][]>(INITIAL_MAP.map(row => [...row]));
-    const [pacman, setPacman] = useState<Position>({ x: 9, y: 15 });
+    const [pacman, setPacman] = useState<Position>(INITIAL_PACMAN);
     const [ghosts, setGhosts] = useState<GhostEntity[]>(INITIAL_GHOSTS);
     const [direction, setDirection] = useState<Direction>(null);
     const [nextDirection, setNextDirection] = useState<Direction>(null);
@@ -183,7 +183,7 @@ const Game: React.FC = () => {
 
     const resetGame = () => {
         setGrid(INITIAL_MAP.map(row => [...row]));
-        setPacman({ x: 9, y: 15 });
+        setPacman(INITIAL_PACMAN);
         setGhosts(INITIAL_GHOSTS);
         setDirection(null);
         setNextDirection(null);
