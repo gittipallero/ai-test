@@ -223,7 +223,7 @@ const Game: React.FC = () => {
             {gameOver && (
                 <div className="game-over">
                     <div>GAME OVER</div>
-                    <button onClick={resetGame} style={{ marginTop: '20px', padding: '10px 20px', fontSize: '18px', cursor: 'pointer' }}>
+                    <button onClick={resetGame} style={{ marginTop: '20px', fontSize: '18px' }}>
                         Start New Game
                     </button>
                 </div>
