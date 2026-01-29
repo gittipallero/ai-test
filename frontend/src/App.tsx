@@ -45,26 +45,25 @@ function App() {
         {username && <p>PLAYER: {username}</p>}
       </header>
       <main>
+        {!username && (
+          <div className="username-section" role="dialog" aria-modal="true" aria-labelledby="username-title">
+            <form className="username-form" onSubmit={handleUsernameSubmit}>
+              <h2 id="username-title">PLAYER NAME</h2>
+              <label htmlFor="username-input">USERNAME</label>
+              <input
+                id="username-input"
+                type="text"
+                value={usernameInput}
+                onChange={event => setUsernameInput(event.target.value)}
+                autoFocus
+              />
+              {usernameError && <p className="username-error">{usernameError}</p>}
+              <button type="submit">START</button>
+            </form>
+          </div>
+        )}
         <div className="game-container">
-          {username ? (
-            <Game />
-          ) : (
-            <div className="username-overlay" role="dialog" aria-modal="true" aria-labelledby="username-title">
-              <form className="username-form" onSubmit={handleUsernameSubmit}>
-                <h2 id="username-title">PLAYER NAME</h2>
-                <label htmlFor="username-input">USERNAME</label>
-                <input
-                  id="username-input"
-                  type="text"
-                  value={usernameInput}
-                  onChange={event => setUsernameInput(event.target.value)}
-                  autoFocus
-                />
-                {usernameError && <p className="username-error">{usernameError}</p>}
-                <button type="submit">START</button>
-              </form>
-            </div>
-          )}
+          {username && <Game />}
         </div>
       </main>
       <footer>
