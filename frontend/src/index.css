@@ -1,0 +1,49 @@
+:root {
+  --c64-bg: #40318D;
+  --c64-fg: #A8A8FF;
+  --c64-border: #8774D3;
+  --c64-text: #FFFFFF;
+  --game-width: 600px;
+  --game-height: 480px;
+}
+
+body {
+  margin: 0;
+  display: flex;
+  place-items: center;
+  min-width: 320px;
+  min-height: 100vh;
+  background-color: var(--c64-bg);
+  color: var(--c64-text);
+  font-family: 'VT323', monospace;
+  font-size: 24px;
+  image-rendering: pixelated;
+  -webkit-font-smoothing: none;
+}
+
+#root {
+  width: 100%;
+  max-width: 1280px;
+  margin: 0 auto;
+  text-align: center;
+  padding: 2rem;
+  border: 4px solid var(--c64-border);
+  background-color: var(--c64-bg);
+  box-shadow: 10px 10px 0px rgba(0,0,0,0.5);
+}
+
+button {
+  background-color: var(--c64-border);
+  color: var(--c64-text);
+  border: 2px solid #fff;
+  padding: 10px 20px;
+  font-family: 'VT323', monospace;
+  font-size: 24px;
+  cursor: pointer;
+  text-transform: uppercase;
+}
+
+button:hover {
+  background-color: var(--c64-fg);
+  color: var(--c64-bg);
+}
