@@ -29,6 +29,14 @@ type AuthRequest struct {
 
 var db *sql.DB
 
+func requireDB(w http.ResponseWriter) bool {
+	if db == nil {
+		http.Error(w, "Database not configured", http.StatusServiceUnavailable)
+		return false
+	}
+	return true
+}
+
 func initDB() {
 	var err error
 	sslMode := os.Getenv("DB_SSLMODE")
@@ -42,18 +50,22 @@ func initDB() {
 	// Fallback for local testing if env vars not set
 	if os.Getenv("DB_HOST") == "" {
 		fmt.Println("Warning: DB_HOST not set, skipping DB init")
+		db = nil
 		return
 	}
 
 	db, err = sql.Open("postgres", connStr)
 	if err != nil {
 		fmt.Printf("Error connecting to DB: %v\n", err)
+		db = nil
 		return
 	}
 
 	err = db.Ping()
 	if err != nil {
 		fmt.Printf("Error pinging DB: %v\n", err)
+		_ = db.Close()
+		db = nil
 		return
 	}
 
@@ -92,6 +104,9 @@ func main() {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
+		if !requireDB(w) {
+			return
+		}
 		var req AuthRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			http.Error(w, "Invalid request body", http.StatusBadRequest)
@@ -118,6 +133,9 @@ func main() {
 	mux.HandleFunc("/api/login", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		if !requireDB(w) {
 			return
 		}
 		var req AuthRequest
