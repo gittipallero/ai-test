@@ -9,11 +9,24 @@ var webAppName = 'app-${applicationName}-${environment}'
 var dockerImageName = 'pacman'
 var dockerImageTag = 'latest'
 
+
+var postgresServerName = 'psql-${uniqueSuffix}'
+var postgresAdminPassword = 'P${uniqueString(resourceGroup().id, 'password')}!' // Simple generated password for demo
+
 module acrModule 'modules/acr.bicep' = {
   name: 'acrDeploy'
   params: {
     location: location
     acrName: acrName
+  }
+}
+
+module postgresModule 'modules/postgres.bicep' = {
+  name: 'postgresDeploy'
+  params: {
+    location: location
+    serverName: postgresServerName
+    adminPassword: postgresAdminPassword
   }
 }
 
@@ -27,8 +40,13 @@ module webAppModule 'modules/webapp.bicep' = {
     acrName: acrModule.outputs.acrName
     dockerImageName: dockerImageName
     dockerImageTag: dockerImageTag
+    dbHost: postgresModule.outputs.fqdn
+    dbUser: postgresModule.outputs.adminUsername
+    dbPass: postgresAdminPassword
+    dbName: postgresModule.outputs.databaseName
   }
 }
 
 output acrLoginServer string = acrModule.outputs.loginServer
 output webAppUrl string = webAppModule.outputs.appServiceUrl
+

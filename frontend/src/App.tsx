@@ -1,13 +1,12 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useState } from 'react'
 import Game from './game/Game'
+import AuthForm from './components/AuthForm'
 import './App.css'
 
 const USERNAME_STORAGE_KEY = 'pacman.username'
 
 function App() {
   const [username, setUsername] = useState<string | null>(null)
-  const [usernameInput, setUsernameInput] = useState('')
-  const [usernameError, setUsernameError] = useState('')
 
   // Fetch high score or initial state from backend
   useEffect(() => {
@@ -25,23 +24,16 @@ function App() {
     }
   }, [])
 
-  const handleUsernameSubmit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    const trimmed = usernameInput.trim()
-    if (!trimmed) {
-      setUsernameError('Please enter a username.')
-      return
-    }
-    sessionStorage.setItem(USERNAME_STORAGE_KEY, trimmed)
-    setUsername(trimmed)
-    setUsernameError('')
+  const handleLoginSuccess = (nickname: string) => {
+    sessionStorage.setItem(USERNAME_STORAGE_KEY, nickname)
+    setUsername(nickname)
   }
 
   return (
     <>
       <header>
         <h1>*** PACMAN C64 ***</h1>
-        <p>{username ? 'READY.' : 'ENTER USERNAME TO START.'}</p>
+        <p>{username ? 'READY.' : 'AUTHENTICATION REQUIRED.'}</p>
         {username && <p>PLAYER: {username}</p>}
       </header>
       <main>
@@ -49,21 +41,7 @@ function App() {
           {username ? (
             <Game />
           ) : (
-            <div className="username-overlay" role="dialog" aria-modal="true" aria-labelledby="username-title">
-              <form className="username-form" onSubmit={handleUsernameSubmit}>
-                <h2 id="username-title">PLAYER NAME</h2>
-                <label htmlFor="username-input">USERNAME</label>
-                <input
-                  id="username-input"
-                  type="text"
-                  value={usernameInput}
-                  onChange={event => setUsernameInput(event.target.value)}
-                  autoFocus
-                />
-                {usernameError && <p className="username-error">{usernameError}</p>}
-                <button type="submit">START</button>
-              </form>
-            </div>
+            <AuthForm onLoginSuccess={handleLoginSuccess} />
           )}
         </div>
       </main>
@@ -76,3 +54,4 @@ function App() {
 }
 
 export default App
+
