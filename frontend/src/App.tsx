@@ -46,7 +46,7 @@ function App() {
       </header>
       <main>
         {!username && (
-          <div className="username-section" role="dialog" aria-modal="true" aria-labelledby="username-title">
+          <div className="username-section" role="dialog" aria-labelledby="username-title">
             <form className="username-form" onSubmit={handleUsernameSubmit}>
               <h2 id="username-title">PLAYER NAME</h2>
               <label htmlFor="username-input">USERNAME</label>
