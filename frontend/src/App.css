@@ -7,10 +7,9 @@ header h1 {
 .game-container {
   display: flex;
   justify-content: center;
-  align-items: center;
+  align-items: flex-start;
   min-height: var(--game-height);
 }
-
 
 
 footer p {

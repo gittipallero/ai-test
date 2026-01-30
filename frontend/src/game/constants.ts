@@ -46,6 +46,8 @@ export interface GhostEntity {
     color: string;
 }
 
+export const INITIAL_PACMAN: Position = { x: 9, y: 15 };
+
 export const INITIAL_GHOSTS: GhostEntity[] = [
     { id: 1, pos: { x: 9, y: 7 }, dir: 'LEFT', color: 'red' },
     { id: 2, pos: { x: 9, y: 8 }, dir: 'RIGHT', color: 'pink' },
