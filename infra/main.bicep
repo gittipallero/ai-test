@@ -5,7 +5,7 @@ param environment string = 'dev'
 var uniqueSuffix = uniqueString(resourceGroup().id)
 var acrName = 'acr${uniqueSuffix}'
 var appServicePlanName = 'asp-${applicationName}-${environment}'
-var webAppName = 'app-${applicationName}-${environment}'
+var webAppName = 'app-${applicationName}-${environment}-${uniqueSuffix}'
 var dockerImageName = 'pacman'
 var dockerImageTag = 'latest'
 
