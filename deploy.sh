@@ -34,7 +34,7 @@ az acr login --name $(echo $ACR_LOGIN_SERVER | cut -d. -f1)
 # Build and Push Docker Image
 IMAGE_NAME="$ACR_LOGIN_SERVER/pacman:latest"
 echo "Building Docker image $IMAGE_NAME..."
-docker build -t $IMAGE_NAME .
+docker build --platform linux/amd64 -t $IMAGE_NAME .
 
 echo "Pushing Docker image to ACR..."
 docker push $IMAGE_NAME
