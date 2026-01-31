@@ -139,17 +139,25 @@ const Game: React.FC<GameProps> = ({ onLogout, onShowScoreboard, onOnlineCountCh
     
     if (waiting) {
         return (
-            <div className="game-board-centered">
-                <div className="waiting-screen">
-                    <h2>Waiting for opponent...</h2>
-                    <p>Online users: {lobbyStats.online_count}</p>
+            <div className="game-wrapper">
+                <div className="game-board-centered">
+                    <div className="waiting-screen">
+                        <h2>Waiting for opponent...</h2>
+                        <p>Online users: {lobbyStats.online_count}</p>
+                    </div>
                 </div>
+                <TouchControls onDirectionChange={handleDirectionInput} />
             </div>
         );
     }
 
     if (!gameState) {
-        return <div className="game-loading">Loading...</div>;
+        return (
+            <div className="game-wrapper">
+                <div className="game-loading">Loading...</div>
+                <TouchControls onDirectionChange={handleDirectionInput} />
+            </div>
+        );
     }
 
     const { grid, players, ghosts, score, gameOver, powerModeTime } = gameState;
