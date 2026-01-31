@@ -4,10 +4,11 @@ import './AuthForm.css'
 interface AuthResponse {
   message: string
   nickname: string
+  token: string
 }
 
 interface AuthFormProps {
-  onLoginSuccess: (nickname: string) => void
+  onLoginSuccess: (nickname: string, token: string) => void
 }
 
 export default function AuthForm({ onLoginSuccess }: AuthFormProps) {
@@ -45,15 +46,8 @@ export default function AuthForm({ onLoginSuccess }: AuthFormProps) {
 
       const data: AuthResponse = await response.json()
       
-      if (isLoginMode) {
-        // Login success
-        onLoginSuccess(data.nickname)
-      } else {
-        // Signup success
-        setAuthSuccess('Signup successful! Please login.')
-        setIsLoginMode(true)
-        setAuthPassword('')
-      }
+      // Both login and signup now return a token (auto-login after signup)
+      onLoginSuccess(data.nickname, data.token)
     } catch (err) {
       if (err instanceof Error) {
         setAuthError(err.message)
