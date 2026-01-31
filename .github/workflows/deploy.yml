@@ -12,10 +12,7 @@ jobs:
   provision:
     uses: ./.github/workflows/provision-infra.yml
     with:
-      resource_group: ${{ vars.AZURE_RESOURCE_GROUP }}
-      location: ${{ vars.AZURE_LOCATION || 'swedencentral' }}
       deployment_name: pacman-deployment
-      postgres_location: ${{ vars.AZURE_POSTGRES_LOCATION || 'swedencentral' }}
     secrets:
       AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
       AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}

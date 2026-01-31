@@ -3,16 +3,7 @@ name: Provision Infrastructure
 on:
   workflow_call:
     inputs:
-      resource_group:
-        required: true
-        type: string
-      location:
-        required: true
-        type: string
       deployment_name:
-        required: true
-        type: string
-      postgres_location:
         required: true
         type: string
     secrets:
@@ -67,18 +58,20 @@ jobs:
 
       - name: Create Resource Group
         run: |
-          az group create --name ${{ inputs.resource_group }} --location ${{ inputs.location }}
+      - name: Create Resource Group
+        run: |
+          az group create --name ${{ vars.AZURE_RESOURCE_GROUP }} --location ${{ vars.AZURE_LOCATION || 'swedencentral' }}
 
       - name: Deploy Infrastructure
         uses: azure/arm-deploy@v2
         id: deploy
         with:
-          resourceGroupName: ${{ inputs.resource_group }}
+          resourceGroupName: ${{ vars.AZURE_RESOURCE_GROUP }}
           template: ./infra/main.bicep
           deploymentName: ${{ inputs.deployment_name }}
           # Incremental is the default mode for arm-deploy, ensuring reusing checking existing resources
           mode: Incremental 
-          parameters: postgresAdminPassword=${{ secrets.POSTGRES_ADMIN_PASSWORD }} postgresLocation=${{ inputs.postgres_location }}
+          parameters: postgresAdminPassword=${{ secrets.POSTGRES_ADMIN_PASSWORD }} postgresLocation=${{ vars.AZURE_POSTGRES_LOCATION || 'swedencentral' }}
 
       - name: Derive Deployment Outputs
         id: deploy_outputs
