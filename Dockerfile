@@ -1,5 +1,5 @@
 # Stage 1: Build the Frontend
-FROM node:18-alpine AS frontend-builder
+FROM node:22-alpine AS frontend-builder
 WORKDIR /app/frontend
 # Copy package.json and lock files
 COPY frontend/package*.json ./
@@ -21,7 +21,7 @@ RUN go mod download
 COPY backend/ .
 # Build the Go binary
 # CGO_ENABLED=0 creates a statically linked binary
-RUN CGO_ENABLED=0 GOOS=linux go build -o pacman-server main.go
+RUN CGO_ENABLED=0 GOOS=linux go build -o pacman-server .
 
 # Stage 3: Final Image
 FROM alpine:latest
