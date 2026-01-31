@@ -13,8 +13,8 @@ RUN npm run build
 # Stage 2: Build the Backend
 FROM golang:1.24-alpine AS backend-builder
 WORKDIR /app/backend
-# Copy go.mod (and go.sum if it existed, though only go.mod was seen)
-COPY backend/go.mod ./
+# Copy go.mod and go.sum for checksum verification
+COPY backend/go.mod backend/go.sum ./
 # Download dependencies (if any)
 RUN go mod download
 # Copy source code
