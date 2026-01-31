@@ -2,33 +2,17 @@
 
 Instructions and context for AI agents working on this codebase.
 
+> [!IMPORTANT]
+> **Also read [README.md](README.md)** for basic information about the game, features, and project structure.
+>
+> **Whenever the project structure or game logic changes, you MUST update README.md** to reflect those changes.
+
 ## Project Overview
 
 This is a **Pacman game clone** with a Commodore 64 retro aesthetic. The project consists of:
 
 - **Frontend**: React 19 + TypeScript + Vite
 - **Backend**: Go HTTP server
-
-## Project Structure
-
-```
-/
-├── frontend/           # React application
-│   ├── src/
-│   │   ├── App.tsx          # Main app with username input
-│   │   ├── App.css          # App styling
-│   │   ├── game/
-│   │   │   ├── Game.tsx     # Core game logic and rendering
-│   │   │   ├── Game.css     # Game styling
-│   │   │   └── constants.ts # Game constants, types, and map data
-│   │   └── main.tsx         # Entry point
-│   └── package.json
-├── backend/            # Go server
-│   ├── main.go              # HTTP server (serves static files + API)
-│   └── go.mod
-├── Makefile            # Build commands
-└── AGENTS.md           # This file
-```
 
 ## Development Commands
 
@@ -106,6 +90,7 @@ The game logic is in `frontend/src/game/`:
 - Use `type` imports for TypeScript types: `import type { ... }`
 - CSS files co-located with components
 - Game state managed with React `useState`
+- **Prefer modularity**: Break large components into smaller, reusable components. Each component should have a single responsibility. Avoid monolithic components—extract dialogs, overlays, and repeated UI patterns into their own component files.
 
 ## Testing & Quality
 

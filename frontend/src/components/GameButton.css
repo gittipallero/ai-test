@@ -9,6 +9,8 @@
     text-transform: uppercase;
     transition: all 0.2s ease;
     box-shadow: 4px 4px 0px rgba(0,0,0,0.5);
+    width: 100%;
+    min-width: 180px;
 }
 
 .game-button:hover {
