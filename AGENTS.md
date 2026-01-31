@@ -123,3 +123,5 @@ Add new handlers in `backend/main.go` using `mux.HandleFunc()`.
 - Direction changes are queued via `nextDirection` state
 - Portals (tunnels) wrap around at map edges
 - Ghost collision during power mode sends ghost back to spawn
+Preference: Small Functions over Long Functions
+When writing code, prefer breaking down long functions into smaller, more manageable helper functions. This improves readability and maintainability.

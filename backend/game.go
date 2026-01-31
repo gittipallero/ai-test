@@ -2,80 +2,8 @@ package main
 
 import (
 	"math/rand"
-	"sync"
 	"time"
 )
-
-const (
-	Rows = 21
-	Cols = 19
-)
-
-type Direction string
-
-const (
-	DirUp    Direction = "UP"
-	DirDown  Direction = "DOWN"
-	DirLeft  Direction = "LEFT"
-	DirRight Direction = "RIGHT"
-)
-
-type Position struct {
-	X int `json:"x"`
-	Y int `json:"y"`
-}
-
-type Ghost struct {
-	ID    int      `json:"id"`
-	Pos   Position `json:"pos"`
-	Dir   Direction `json:"dir"`
-	Color string   `json:"color"`
-}
-
-type GameState struct {
-	Grid          [Rows][Cols]int `json:"grid"`
-	Pacman        Position        `json:"pacman"`
-	Ghosts        []Ghost         `json:"ghosts"`
-	Score         int             `json:"score"`
-	GameOver      bool            `json:"gameOver"`
-	PowerModeTime int             `json:"powerModeTime"`
-	Direction     Direction       `json:"direction"`
-	NextDirection Direction       `json:"nextDirection"`
-	LastEatTime   int64           `json:"lastEatTime"`
-	mu            sync.RWMutex
-}
-
-var InitialMap = [Rows][Cols]int{
-	{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
-	{1, 2, 2, 2, 2, 2, 2, 2, 2, 1, 2, 2, 2, 2, 2, 2, 2, 2, 1},
-	{1, 2, 1, 1, 2, 1, 1, 1, 2, 1, 2, 1, 1, 1, 2, 1, 1, 2, 1},
-	{1, 2, 1, 1, 2, 1, 1, 1, 2, 1, 2, 1, 1, 1, 2, 1, 1, 2, 1},
-	{1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1},
-	{1, 2, 1, 1, 2, 1, 2, 1, 1, 1, 1, 1, 2, 1, 2, 1, 1, 2, 1},
-	{1, 2, 2, 2, 2, 1, 2, 2, 2, 1, 2, 2, 2, 1, 2, 2, 2, 2, 1},
-	{1, 1, 1, 1, 2, 1, 1, 1, 0, 1, 0, 1, 1, 1, 2, 1, 1, 1, 1},
-	{0, 0, 0, 1, 2, 1, 0, 0, 0, 0, 0, 0, 0, 1, 2, 1, 0, 0, 0},
-	{1, 1, 1, 1, 2, 1, 0, 1, 1, 9, 1, 1, 0, 1, 2, 1, 1, 1, 1},
-	{0, 2, 2, 2, 2, 0, 0, 1, 0, 0, 0, 1, 0, 0, 2, 2, 2, 2, 0},
-	{1, 1, 1, 1, 2, 1, 0, 1, 1, 1, 1, 1, 0, 1, 2, 1, 1, 1, 1},
-	{0, 0, 0, 1, 2, 1, 0, 0, 0, 0, 0, 0, 0, 1, 2, 1, 0, 0, 0},
-	{1, 1, 1, 1, 2, 1, 2, 1, 1, 1, 1, 1, 2, 1, 2, 1, 1, 1, 1},
-	{1, 2, 2, 2, 2, 2, 2, 2, 2, 1, 2, 2, 2, 2, 2, 2, 2, 2, 1},
-	{1, 2, 1, 1, 2, 1, 1, 1, 2, 1, 2, 1, 1, 1, 2, 1, 1, 2, 1},
-	{1, 2, 2, 1, 2, 2, 2, 2, 2, 0, 2, 2, 2, 2, 2, 1, 2, 2, 1},
-	{1, 1, 2, 1, 2, 1, 2, 1, 1, 1, 1, 1, 2, 1, 2, 1, 2, 1, 1},
-	{1, 2, 2, 2, 2, 1, 2, 2, 2, 1, 2, 2, 2, 1, 2, 2, 2, 2, 1},
-	{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
-	{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
-}
-
-var InitialPacman = Position{X: 9, Y: 15}
-var InitialGhosts = []Ghost{
-	{ID: 1, Pos: Position{X: 9, Y: 7}, Dir: DirLeft, Color: "red"},
-	{ID: 2, Pos: Position{X: 9, Y: 8}, Dir: DirRight, Color: "pink"},
-	{ID: 3, Pos: Position{X: 10, Y: 7}, Dir: DirUp, Color: "cyan"},
-	{ID: 4, Pos: Position{X: 10, Y: 8}, Dir: DirDown, Color: "orange"},
-}
 
 func NewGame() *GameState {
 	// Deep copy grid
@@ -87,13 +15,13 @@ func NewGame() *GameState {
 	}
 
 	game := &GameState{
-		Grid:   grid,
-		Pacman: InitialPacman,
-		Ghosts: make([]Ghost, len(InitialGhosts)),
-		Score:  0,
+		Grid:          grid,
+		Pacman:        InitialPacman,
+		Ghosts:        make([]Ghost, len(InitialGhosts)),
+		Score:         0,
 		PowerModeTime: 0,
-		LastEatTime: time.Now().UnixMilli(),
-		GameOver: false,
+		LastEatTime:   time.Now().UnixMilli(),
+		GameOver:      false,
 	}
 	copy(game.Ghosts, InitialGhosts)
 	return game
@@ -132,40 +60,45 @@ func (g *GameState) movePacman() {
 
 	if currentDir != "" && g.canMove(g.Pacman, currentDir) {
 		newPos := g.getNextPos(g.Pacman, currentDir)
-
-		// Teleport
-		if newPos.X < 0 {
-			newPos.X = Cols - 1
-		} else if newPos.X >= Cols {
-			newPos.X = 0
-		}
-
-		// Eat Dot
-		cell := g.Grid[newPos.Y][newPos.X]
-		if cell == 2 {
-			g.Grid[newPos.Y][newPos.X] = 0
-			
-			// Calculate time-dependent bonus
-			now := time.Now().UnixMilli()
-			timeDiff := now - g.LastEatTime
-			bonus := 0
-			if timeDiff < 1000 {
-				bonus = int(100 - (timeDiff / 10))
-				if bonus < 0 {
-					bonus = 0
-				}
-			}
-			g.Score += 10 + bonus
-			g.LastEatTime = now
-		}
-		// Eat Power
-		if cell == 3 {
-			g.Grid[newPos.Y][newPos.X] = 0
-			g.Score += 50
-			g.PowerModeTime = 5000
-		}
-
+		newPos = g.handleTeleport(newPos)
+		g.handleEating(newPos)
 		g.Pacman = newPos
+	}
+}
+
+func (g *GameState) handleTeleport(pos Position) Position {
+	if pos.X < 0 {
+		pos.X = Cols - 1
+	} else if pos.X >= Cols {
+		pos.X = 0
+	}
+	return pos
+}
+
+func (g *GameState) handleEating(pos Position) {
+	// Eat Dot
+	cell := g.Grid[pos.Y][pos.X]
+	if cell == 2 {
+		g.Grid[pos.Y][pos.X] = 0
+
+		// Calculate time-dependent bonus
+		now := time.Now().UnixMilli()
+		timeDiff := now - g.LastEatTime
+		bonus := 0
+		if timeDiff < 1000 {
+			bonus = int(100 - (timeDiff / 10))
+			if bonus < 0 {
+				bonus = 0
+			}
+		}
+		g.Score += 10 + bonus
+		g.LastEatTime = now
+	}
+	// Eat Power
+	if cell == 3 {
+		g.Grid[pos.Y][pos.X] = 0
+		g.Score += 50
+		g.PowerModeTime = 5000
 	}
 }
 
@@ -174,52 +107,55 @@ func (g *GameState) moveGhosts() {
 	if rand.Int() == 0 {
 		rand.Seed(time.Now().UnixNano())
 	}
-	
+
 	for i := range g.Ghosts {
 		ghost := &g.Ghosts[i]
-		
-		possibleDirs := []Direction{DirUp, DirDown, DirLeft, DirRight}
-		var validDirs []Direction
-		for _, d := range possibleDirs {
-			if g.canMove(ghost.Pos, d) {
-				validDirs = append(validDirs, d)
+		g.moveOneGhost(ghost)
+	}
+}
+
+func (g *GameState) moveOneGhost(ghost *Ghost) {
+	validDirs := g.getValidGhostDirs(ghost)
+
+	// Don't reverse immediately if possible
+	reverseDir := getReverseDir(ghost.Dir)
+	if len(validDirs) > 1 && ghost.Dir != "" {
+		var nonReverse []Direction
+		for _, d := range validDirs {
+			if d != reverseDir {
+				nonReverse = append(nonReverse, d)
 			}
 		}
-
-		// Don't reverse immediately if possible
-		reverseDir := getReverseDir(ghost.Dir)
-		if len(validDirs) > 1 && ghost.Dir != "" {
-			var nonReverse []Direction
-			for _, d := range validDirs {
-				if d != reverseDir {
-					nonReverse = append(nonReverse, d)
-				}
-			}
-			if len(nonReverse) > 0 {
-				validDirs = nonReverse
-			}
-		}
-
-		nextDir := ghost.Dir
-		// Randomly change direction or if stuck
-		if ghost.Dir == "" || !g.canMove(ghost.Pos, ghost.Dir) || rand.Float64() < 0.2 {
-			if len(validDirs) > 0 {
-				nextDir = validDirs[rand.Intn(len(validDirs))]
-			}
-		}
-
-		if nextDir != "" && g.canMove(ghost.Pos, nextDir) {
-			newPos := g.getNextPos(ghost.Pos, nextDir)
-			// Teleport
-			if newPos.X < 0 {
-				newPos.X = Cols - 1
-			} else if newPos.X >= Cols {
-				newPos.X = 0
-			}
-			ghost.Pos = newPos
-			ghost.Dir = nextDir
+		if len(nonReverse) > 0 {
+			validDirs = nonReverse
 		}
 	}
+
+	nextDir := ghost.Dir
+	// Randomly change direction or if stuck
+	if ghost.Dir == "" || !g.canMove(ghost.Pos, ghost.Dir) || rand.Float64() < 0.2 {
+		if len(validDirs) > 0 {
+			nextDir = validDirs[rand.Intn(len(validDirs))]
+		}
+	}
+
+	if nextDir != "" && g.canMove(ghost.Pos, nextDir) {
+		newPos := g.getNextPos(ghost.Pos, nextDir)
+		newPos = g.handleTeleport(newPos)
+		ghost.Pos = newPos
+		ghost.Dir = nextDir
+	}
+}
+
+func (g *GameState) getValidGhostDirs(ghost *Ghost) []Direction {
+	possibleDirs := []Direction{DirUp, DirDown, DirLeft, DirRight}
+	var validDirs []Direction
+	for _, d := range possibleDirs {
+		if g.canMove(ghost.Pos, d) {
+			validDirs = append(validDirs, d)
+		}
+	}
+	return validDirs
 }
 
 func (g *GameState) checkCollisions() {

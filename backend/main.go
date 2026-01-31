@@ -1,8 +1,8 @@
 package main
 
 import (
-	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -10,8 +10,6 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	_ "github.com/lib/pq"
-	"golang.org/x/crypto/bcrypt"
 )
 
 var upgrader = websocket.Upgrader{
@@ -20,100 +18,8 @@ var upgrader = websocket.Upgrader{
 	},
 }
 
-type User struct {
-	ID           int    `json:"id"`
-	Nickname     string `json:"nickname"`
-	PasswordHash string `json:"-"`
-}
-
-type AuthRequest struct {
-	Nickname string `json:"nickname"`
-	Password string `json:"password"`
-}
-
-type ScoreSubmitRequest struct {
-	Nickname string `json:"nickname"`
-	Score    int    `json:"score"`
-}
-
-type ScoreEntry struct {
-	Nickname string `json:"nickname"`
-	Score    int    `json:"score"`
-}
-
-var db *sql.DB
-
-func requireDB(w http.ResponseWriter) bool {
-	if db == nil {
-		http.Error(w, "Database not configured", http.StatusServiceUnavailable)
-		return false
-	}
-	return true
-}
-
-func initDB() {
-	var err error
-	sslMode := os.Getenv("DB_SSLMODE")
-	if sslMode == "" {
-		sslMode = "require" // Default to require for security
-	}
-
-	connStr := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
-		os.Getenv("DB_HOST"), os.Getenv("DB_PORT"), os.Getenv("DB_USER"), os.Getenv("DB_PASSWORD"), os.Getenv("DB_NAME"), sslMode)
-
-	// Fallback for local testing if env vars not set
-	if os.Getenv("DB_HOST") == "" {
-		fmt.Println("Warning: DB_HOST not set, skipping DB init")
-		db = nil
-		return
-	}
-
-	db, err = sql.Open("postgres", connStr)
-	if err != nil {
-		fmt.Printf("Error connecting to DB: %v\n", err)
-		db = nil
-		return
-	}
-
-	err = db.Ping()
-	if err != nil {
-		fmt.Printf("Error pinging DB: %v\n", err)
-		_ = db.Close()
-		db = nil
-		return
-	}
-
-	createUsersTableSQL := `CREATE TABLE IF NOT EXISTS users (
-		id SERIAL PRIMARY KEY,
-		nickname TEXT UNIQUE NOT NULL,
-		password_hash TEXT NOT NULL
-	);`
-	_, err = db.Exec(createUsersTableSQL)
-	if err != nil {
-		fmt.Printf("Error creating users table: %v\n", err)
-		_ = db.Close()
-		db = nil
-		return
-	}
-
-	createScoresTableSQL := `CREATE TABLE IF NOT EXISTS scores (
-		id SERIAL PRIMARY KEY,
-		nickname TEXT UNIQUE NOT NULL,
-		score INT NOT NULL,
-		updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-	);`
-	_, err = db.Exec(createScoresTableSQL)
-	if err != nil {
-		fmt.Printf("Error creating scores table: %v\n", err)
-		_ = db.Close()
-		db = nil
-		return
-	}
-	fmt.Println("Database initialized successfully")
-}
-
 func main() {
-	initDB()
+	InitDB()
 	mux := http.NewServeMux()
 
 	// Serve static files from frontend/dist
@@ -139,7 +45,7 @@ func main() {
 		}
 
 		game := NewGame()
-		
+
 		// Handle Input
 		go func() {
 			for {
@@ -171,7 +77,7 @@ func main() {
 
 			if err != nil {
 				fmt.Println("Marshal error:", err)
-				break 
+				break
 			}
 
 			if err := conn.WriteMessage(websocket.TextMessage, bytes); err != nil {
@@ -180,24 +86,13 @@ func main() {
 
 			if gameOver {
 				// Save score
-				if db != nil {
-					// reusing the same upsert logic
-					upsertSQL := `
-						INSERT INTO scores (nickname, score, updated_at)
-						VALUES ($1, $2, CURRENT_TIMESTAMP)
-						ON CONFLICT (nickname)
-						DO UPDATE SET score = EXCLUDED.score, updated_at = CURRENT_TIMESTAMP
-						WHERE scores.score < EXCLUDED.score
-					`
-					_, err := db.Exec(upsertSQL, nickname, score)
-					if err != nil {
-						fmt.Println("Failed to save score:", err)
-					} else {
-						fmt.Println("Score saved for", nickname, ":", score)
-					}
+				if err := SaveScore(nickname, score); err != nil {
+					fmt.Println("Failed to save score:", err)
+				} else {
+					fmt.Println("Score saved for", nickname, ":", score)
 				}
 				// Give meaningful time for client to receive GameOver state before closing
-				time.Sleep(500 * time.Millisecond) 
+				time.Sleep(500 * time.Millisecond)
 				// We don't break immediately, let the client disconnect or just stop sending updates?
 				// Actually, we should probably stop the loop.
 				break
@@ -210,7 +105,7 @@ func main() {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		if !requireDB(w) {
+		if !RequireDB(w) {
 			return
 		}
 
@@ -220,16 +115,7 @@ func main() {
 			return
 		}
 
-		// Upsert: insert if not exists, update only if new score is higher
-		upsertSQL := `
-			INSERT INTO scores (nickname, score, updated_at)
-			VALUES ($1, $2, CURRENT_TIMESTAMP)
-			ON CONFLICT (nickname)
-			DO UPDATE SET score = EXCLUDED.score, updated_at = CURRENT_TIMESTAMP
-			WHERE scores.score < EXCLUDED.score
-		`
-		_, err := db.Exec(upsertSQL, req.Nickname, req.Score)
-		if err != nil {
+		if err := SaveScore(req.Nickname, req.Score); err != nil {
 			fmt.Println("Score update error:", err)
 			http.Error(w, "Database error", http.StatusInternalServerError)
 			return
@@ -245,26 +131,15 @@ func main() {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		if !requireDB(w) {
+		if !RequireDB(w) {
 			return
 		}
 
-		rows, err := db.Query("SELECT nickname, score FROM scores ORDER BY score DESC LIMIT 10")
+		scores, err := GetTopScores()
 		if err != nil {
 			fmt.Println("Scoreboard query error:", err)
 			http.Error(w, "Database error", http.StatusInternalServerError)
 			return
-		}
-		defer rows.Close()
-
-		var scores []ScoreEntry
-		for rows.Next() {
-			var entry ScoreEntry
-			if err := rows.Scan(&entry.Nickname, &entry.Score); err != nil {
-				fmt.Println("Row scan error:", err)
-				continue
-			}
-			scores = append(scores, entry)
 		}
 
 		w.Header().Set("Content-Type", "application/json")
@@ -276,7 +151,7 @@ func main() {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		if !requireDB(w) {
+		if !RequireDB(w) {
 			return
 		}
 		var req AuthRequest
@@ -285,16 +160,13 @@ func main() {
 			return
 		}
 
-		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
-		if err != nil {
-			http.Error(w, "Server error", http.StatusInternalServerError)
-			return
-		}
-
-		_, err = db.Exec("INSERT INTO users (nickname, password_hash) VALUES ($1, $2)", req.Nickname, string(hashedPassword))
-		if err != nil {
+		if err := CreateUser(req.Nickname, req.Password); err != nil {
 			fmt.Println("Signup error:", err)
-			http.Error(w, "Username already taken or database error", http.StatusConflict)
+			if errors.Is(err, ErrUsernameTaken) {
+				http.Error(w, "Username already taken", http.StatusConflict)
+			} else {
+				http.Error(w, "Server error", http.StatusInternalServerError)
+			}
 			return
 		}
 
@@ -308,7 +180,7 @@ func main() {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		if !requireDB(w) {
+		if !RequireDB(w) {
 			return
 		}
 		var req AuthRequest
@@ -317,14 +189,7 @@ func main() {
 			return
 		}
 
-		var storedHash string
-		err := db.QueryRow("SELECT password_hash FROM users WHERE nickname=$1", req.Nickname).Scan(&storedHash)
-		if err != nil {
-			http.Error(w, "Invalid credentials", http.StatusUnauthorized)
-			return
-		}
-
-		if err := bcrypt.CompareHashAndPassword([]byte(storedHash), []byte(req.Password)); err != nil {
+		if err := VerifyUser(req.Nickname, req.Password); err != nil {
 			http.Error(w, "Invalid credentials", http.StatusUnauthorized)
 			return
 		}
