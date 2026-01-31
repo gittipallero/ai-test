@@ -41,6 +41,7 @@ type GameState struct {
 	PowerModeTime int             `json:"powerModeTime"`
 	Direction     Direction       `json:"direction"`
 	NextDirection Direction       `json:"nextDirection"`
+	LastEatTime   int64           `json:"lastEatTime"`
 	mu            sync.RWMutex
 }
 
@@ -91,6 +92,7 @@ func NewGame() *GameState {
 		Ghosts: make([]Ghost, len(InitialGhosts)),
 		Score:  0,
 		PowerModeTime: 0,
+		LastEatTime: time.Now().UnixMilli(),
 		GameOver: false,
 	}
 	copy(game.Ghosts, InitialGhosts)
@@ -142,7 +144,19 @@ func (g *GameState) movePacman() {
 		cell := g.Grid[newPos.Y][newPos.X]
 		if cell == 2 {
 			g.Grid[newPos.Y][newPos.X] = 0
-			g.Score += 10
+			
+			// Calculate time-dependent bonus
+			now := time.Now().UnixMilli()
+			timeDiff := now - g.LastEatTime
+			bonus := 0
+			if timeDiff < 1000 {
+				bonus = int(100 - (timeDiff / 10))
+				if bonus < 0 {
+					bonus = 0
+				}
+			}
+			g.Score += 10 + bonus
+			g.LastEatTime = now
 		}
 		// Eat Power
 		if cell == 3 {

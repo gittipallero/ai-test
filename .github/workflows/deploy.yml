@@ -9,6 +9,7 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  environment: prod    
   provision:
     uses: ./.github/workflows/provision-infra.yml
     with:

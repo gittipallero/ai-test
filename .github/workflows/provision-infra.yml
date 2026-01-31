@@ -41,6 +41,7 @@ on:
         value: ${{ jobs.provision.outputs.webapp_url }}
 
 jobs:
+  environment: prod    
   provision:
     runs-on: ubuntu-latest
     outputs:

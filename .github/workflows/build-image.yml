@@ -23,6 +23,7 @@ on:
         required: true
 
 jobs:
+  environment: prod    
   build-and-push:
     runs-on: ubuntu-latest
     steps:
