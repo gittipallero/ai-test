@@ -194,6 +194,9 @@ func (l *Lobby) StartPairGame(p1, p2 *Client) {
 func (l *Lobby) BroadcastPlayerCount() {
     // This is just a helper to let clients know how many people are online
     // to show/hide the "Pair Mode" button ideally
+    l.mu.Lock()
+    defer l.mu.Unlock()
+
     count := len(l.clients)
     if count < 2 {
         // If 0 or 1, no pair mode possible really (unless waiting for someone)
@@ -202,9 +205,7 @@ func (l *Lobby) BroadcastPlayerCount() {
         "type": "lobby_stats",
         "online_count": count,
     }
-    
-    l.mu.Lock()
-    defer l.mu.Unlock()
+
     for client := range l.clients {
          client.Conn.WriteJSON(msg)
     }
