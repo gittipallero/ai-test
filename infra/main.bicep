@@ -1,6 +1,8 @@
 param location string = resourceGroup().location
 param applicationName string = 'pacman-app'
 param environment string = 'dev'
+@secure()
+param postgresAdminPassword string
 
 var uniqueSuffix = uniqueString(resourceGroup().id)
 var acrName = 'acr${uniqueSuffix}'
@@ -11,7 +13,6 @@ var dockerImageTag = 'latest'
 
 
 var postgresServerName = 'psql-${uniqueSuffix}'
-var postgresAdminPassword = 'P${uniqueString(resourceGroup().id, 'password')}!' // Simple generated password for demo
 
 module acrModule 'modules/acr.bicep' = {
   name: 'acrDeploy'

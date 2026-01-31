@@ -1,5 +1,6 @@
 param location string
 param serverName string
+@secure()
 param adminPassword string
 param adminUsername string = 'postgresAdmin'
 param databaseName string = 'pacmangame'

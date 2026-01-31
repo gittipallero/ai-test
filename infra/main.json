@@ -4,8 +4,8 @@
   "metadata": {
     "_generator": {
       "name": "bicep",
-      "version": "0.37.4.10188",
-      "templateHash": "5649439712878545913"
+      "version": "0.40.2.10011",
+      "templateHash": "18241849153875151589"
     }
   },
   "parameters": {
@@ -20,6 +20,9 @@
     "environment": {
       "type": "string",
       "defaultValue": "dev"
+    },
+    "postgresAdminPassword": {
+      "type": "securestring"
     }
   },
   "variables": {
@@ -29,13 +32,12 @@
     "webAppName": "[format('app-{0}-{1}', parameters('applicationName'), parameters('environment'))]",
     "dockerImageName": "pacman",
     "dockerImageTag": "latest",
-    "postgresServerName": "[format('psql-{0}', variables('uniqueSuffix'))]",
-    "postgresAdminPassword": "[format('P{0}!', uniqueString(resourceGroup().id, 'password'))]"
+    "postgresServerName": "[format('psql-{0}', variables('uniqueSuffix'))]"
   },
   "resources": [
     {
       "type": "Microsoft.Resources/deployments",
-      "apiVersion": "2022-09-01",
+      "apiVersion": "2025-04-01",
       "name": "acrDeploy",
       "properties": {
         "expressionEvaluationOptions": {
@@ -56,8 +58,8 @@
           "metadata": {
             "_generator": {
               "name": "bicep",
-              "version": "0.37.4.10188",
-              "templateHash": "6353066227044656400"
+              "version": "0.40.2.10011",
+              "templateHash": "14254222327462833548"
             }
           },
           "parameters": {
@@ -101,7 +103,7 @@
     },
     {
       "type": "Microsoft.Resources/deployments",
-      "apiVersion": "2022-09-01",
+      "apiVersion": "2025-04-01",
       "name": "postgresDeploy",
       "properties": {
         "expressionEvaluationOptions": {
@@ -116,7 +118,7 @@
             "value": "[variables('postgresServerName')]"
           },
           "adminPassword": {
-            "value": "[variables('postgresAdminPassword')]"
+            "value": "[parameters('postgresAdminPassword')]"
           }
         },
         "template": {
@@ -125,8 +127,8 @@
           "metadata": {
             "_generator": {
               "name": "bicep",
-              "version": "0.37.4.10188",
-              "templateHash": "4125846268323050139"
+              "version": "0.40.2.10011",
+              "templateHash": "1279987268035452834"
             }
           },
           "parameters": {
@@ -137,7 +139,7 @@
               "type": "string"
             },
             "adminPassword": {
-              "type": "string"
+              "type": "securestring"
             },
             "adminUsername": {
               "type": "string",
@@ -207,7 +209,7 @@
     },
     {
       "type": "Microsoft.Resources/deployments",
-      "apiVersion": "2022-09-01",
+      "apiVersion": "2025-04-01",
       "name": "webAppDeploy",
       "properties": {
         "expressionEvaluationOptions": {
@@ -225,10 +227,10 @@
             "value": "[variables('appServicePlanName')]"
           },
           "acrLoginServer": {
-            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'acrDeploy'), '2022-09-01').outputs.loginServer.value]"
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'acrDeploy'), '2025-04-01').outputs.loginServer.value]"
           },
           "acrName": {
-            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'acrDeploy'), '2022-09-01').outputs.acrName.value]"
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'acrDeploy'), '2025-04-01').outputs.acrName.value]"
           },
           "dockerImageName": {
             "value": "[variables('dockerImageName')]"
@@ -237,16 +239,16 @@
             "value": "[variables('dockerImageTag')]"
           },
           "dbHost": {
-            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'postgresDeploy'), '2022-09-01').outputs.fqdn.value]"
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'postgresDeploy'), '2025-04-01').outputs.fqdn.value]"
           },
           "dbUser": {
-            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'postgresDeploy'), '2022-09-01').outputs.adminUsername.value]"
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'postgresDeploy'), '2025-04-01').outputs.adminUsername.value]"
           },
           "dbPass": {
-            "value": "[variables('postgresAdminPassword')]"
+            "value": "[parameters('postgresAdminPassword')]"
           },
           "dbName": {
-            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'postgresDeploy'), '2022-09-01').outputs.databaseName.value]"
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'postgresDeploy'), '2025-04-01').outputs.databaseName.value]"
           }
         },
         "template": {
@@ -255,8 +257,8 @@
           "metadata": {
             "_generator": {
               "name": "bicep",
-              "version": "0.37.4.10188",
-              "templateHash": "2802911225348075918"
+              "version": "0.40.2.10011",
+              "templateHash": "17759325718955946789"
             }
           },
           "parameters": {
@@ -355,6 +357,10 @@
                     {
                       "name": "DB_PORT",
                       "value": "5432"
+                    },
+                    {
+                      "name": "DB_SSLMODE",
+                      "value": "require"
                     }
                   ]
                 }
@@ -381,11 +387,11 @@
   "outputs": {
     "acrLoginServer": {
       "type": "string",
-      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'acrDeploy'), '2022-09-01').outputs.loginServer.value]"
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'acrDeploy'), '2025-04-01').outputs.loginServer.value]"
     },
     "webAppUrl": {
       "type": "string",
-      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'webAppDeploy'), '2022-09-01').outputs.appServiceUrl.value]"
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'webAppDeploy'), '2025-04-01').outputs.appServiceUrl.value]"
     }
   }
 }
