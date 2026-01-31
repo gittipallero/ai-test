@@ -39,7 +39,9 @@ A classic Pacman game clone with a **Commodore 64 retro aesthetic**, built with 
 │   │   │   ├── AuthForm.tsx     # User authentication form
 │   │   │   ├── GameButton.tsx   # Reusable game button component
 │   │   │   ├── GameOverDialog.tsx # Game over dialog component
-│   │   │   ├── ScoreBoard.tsx   # High score view
+│   │   │   ├── ScoreBoard/      # High score view
+│   │   │   │   ├── index.tsx
+│   │   │   │   └── ScoreTable.tsx
 │   │   │   └── TouchControls.tsx # Mobile touch controls
 │   │   └── main.tsx             # Entry point
 │   └── package.json
