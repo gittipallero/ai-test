@@ -5,6 +5,8 @@ param applicationName string = 'pacman-app'
 param environment string = 'dev'
 @secure()
 param postgresAdminPassword string
+@description('Comma-separated list of allowed origins for WebSocket CORS. Leave empty to use the default webapp URL.')
+param allowedOrigins string = ''
 
 var uniqueSuffix = uniqueString(resourceGroup().id)
 var acrName = 'acr${uniqueSuffix}'
@@ -47,6 +49,7 @@ module webAppModule 'modules/webapp.bicep' = {
     dbUser: postgresModule.outputs.adminUsername
     dbPass: postgresAdminPassword
     dbName: postgresModule.outputs.databaseName
+    allowedOrigins: allowedOrigins
   }
 }
 

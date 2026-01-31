@@ -69,7 +69,10 @@ jobs:
           deploymentName: ${{ inputs.deployment_name }}
           # Incremental is the default mode for arm-deploy, ensuring reusing checking existing resources
           mode: Incremental 
-          parameters: postgresAdminPassword=${{ secrets.POSTGRES_ADMIN_PASSWORD }} postgresLocation=${{ vars.AZURE_POSTGRES_LOCATION || 'swedencentral' }}
+          parameters: >-
+            postgresAdminPassword=${{ secrets.POSTGRES_ADMIN_PASSWORD }}
+            postgresLocation=${{ vars.AZURE_POSTGRES_LOCATION || 'swedencentral' }}
+            allowedOrigins=${{ vars.ALLOWED_ORIGINS || '' }}
 
       - name: Derive Deployment Outputs
         id: deploy_outputs

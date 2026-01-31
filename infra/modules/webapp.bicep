@@ -10,6 +10,8 @@ param dbUser string
 @secure()
 param dbPass string
 param dbName string
+@description('Comma-separated list of allowed origins for WebSocket CORS. If empty, defaults to the webapp URL.')
+param allowedOrigins string = ''
 
 resource acr 'Microsoft.ContainerRegistry/registries@2023-01-01-preview' existing = {
   name: acrName
@@ -76,6 +78,11 @@ resource webApp 'Microsoft.Web/sites@2022-09-01' = {
         {
           name: 'DB_SSLMODE'
           value: 'require'
+        }
+        {
+          name: 'ALLOWED_ORIGINS'
+          // Use provided origins or default to the webapp's own URL
+          value: allowedOrigins != '' ? allowedOrigins : 'https://${appName}.azurewebsites.net'
         }
       ]
     }
