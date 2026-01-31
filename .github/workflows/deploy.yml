@@ -9,8 +9,8 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  environment: prod    
   provision:
+    environment: prod
     uses: ./.github/workflows/provision-infra.yml
     with:
       resource_group: ${{ vars.AZURE_RESOURCE_GROUP }}
@@ -26,6 +26,7 @@ jobs:
 
   build-and-deploy:
     needs: provision
+    environment: prod
     uses: ./.github/workflows/build-image.yml
     with:
       acr_login_server: ${{ needs.provision.outputs.acr_login_server }}

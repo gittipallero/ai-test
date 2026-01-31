@@ -41,8 +41,8 @@ on:
         value: ${{ jobs.provision.outputs.webapp_url }}
 
 jobs:
-  environment: prod    
   provision:
+    environment: prod
     runs-on: ubuntu-latest
     outputs:
       acr_login_server: ${{ steps.deploy_outputs.outputs.acr_login_server }}

@@ -23,8 +23,8 @@ on:
         required: true
 
 jobs:
-  environment: prod    
   build-and-push:
+    environment: prod
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
