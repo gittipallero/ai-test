@@ -1,10 +1,6 @@
 package main
 
-import (
-	"sync"
-)
-
-// --- Game Types ---
+// Game Types
 
 type Direction string
 
@@ -14,31 +10,16 @@ type Position struct {
 }
 
 type Ghost struct {
-	ID    int       `json:"id"`
-	Pos   Position  `json:"pos"`
+	ID    int      `json:"id"`
+	Pos   Position `json:"pos"`
 	Dir   Direction `json:"dir"`
-	Color string    `json:"color"`
+	Color string   `json:"color"`
 }
 
-type GameState struct {
-	Grid          [Rows][Cols]int `json:"grid"`
-	Pacman        Position        `json:"pacman"`
-	Ghosts        []Ghost         `json:"ghosts"`
-	Score         int             `json:"score"`
-	GameOver      bool            `json:"gameOver"`
-	PowerModeTime int             `json:"powerModeTime"`
-	Direction     Direction       `json:"direction"`
-	NextDirection Direction       `json:"nextDirection"`
-	LastEatTime   int64           `json:"lastEatTime"`
-	mu            sync.RWMutex
-}
-
-// --- Auth & API Types ---
-
-type User struct {
-	ID           int    `json:"id"`
-	Nickname     string `json:"nickname"`
-	PasswordHash string `json:"-"`
+// Request/Response types for API
+type ScoreSubmitRequest struct {
+	Nickname string `json:"nickname"`
+	Score    int    `json:"score"`
 }
 
 type AuthRequest struct {
@@ -46,12 +27,13 @@ type AuthRequest struct {
 	Password string `json:"password"`
 }
 
-type ScoreSubmitRequest struct {
+type ScoreEntry struct {
 	Nickname string `json:"nickname"`
 	Score    int    `json:"score"`
 }
 
-type ScoreEntry struct {
-	Nickname string `json:"nickname"`
-	Score    int    `json:"score"`
+type PairScoreEntry struct {
+    Player1 string `json:"player1"`
+    Player2 string `json:"player2"`
+    Score   int    `json:"score"`
 }

@@ -6,6 +6,9 @@ interface GameOverDialogProps {
     onRestart: () => void;
     onLogout: () => void;
     onShowScoreboard: () => void;
+    onStartPairGame: () => void;
+    showPairButton: boolean;
+    shouldSubmitScore: boolean;
     score: number;
     nickname: string;
 }
@@ -14,12 +17,15 @@ const GameOverDialog: React.FC<GameOverDialogProps> = ({
     onRestart, 
     onLogout, 
     onShowScoreboard,
+    onStartPairGame,
+    showPairButton,
+    shouldSubmitScore,
     score,
     nickname
 }) => {
     // Submit score when game over dialog mounts
     useEffect(() => {
-        if (nickname && score > 0) {
+        if (shouldSubmitScore && nickname && score > 0) {
             fetch('/api/score', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -30,7 +36,7 @@ const GameOverDialog: React.FC<GameOverDialogProps> = ({
             })
             .catch(err => console.error('Score submission error:', err));
         }
-    }, [nickname, score]);
+    }, [shouldSubmitScore, nickname, score]);
 
     return (
         <div className="game-over">
@@ -46,6 +52,13 @@ const GameOverDialog: React.FC<GameOverDialogProps> = ({
                 label="Score Board" 
                 className="scoreboard-btn"
             />
+            {showPairButton && (
+                <GameButton 
+                    onClick={onStartPairGame} 
+                    label="Start Pair Game" 
+                    className="pair-setup-btn"
+                />
+            )}
             <GameButton 
                 onClick={onLogout} 
                 label="Logout" 

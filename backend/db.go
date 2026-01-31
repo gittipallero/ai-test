@@ -81,6 +81,22 @@ func InitDB() {
 		db = nil
 		return
 	}
+
+	createPairScoresTableV2 := `CREATE TABLE IF NOT EXISTS pair_scores (
+		id SERIAL PRIMARY KEY,
+		player1 TEXT NOT NULL,
+		player2 TEXT NOT NULL,
+		score INT NOT NULL,
+		updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+	);`
+
+	_, err = db.Exec(createPairScoresTableV2)
+	if err != nil {
+		fmt.Printf("Error creating pair_scores table: %v\n", err)
+		_ = db.Close()
+		db = nil
+		return
+	}
 	fmt.Println("Database initialized successfully")
 }
 
@@ -99,6 +115,26 @@ func SaveScore(nickname string, score int) error {
 	return err
 }
 
+func SavePairScore(player1, player2 string, score int) error {
+	if db == nil {
+		return fmt.Errorf("database not initialized")
+	}
+
+    // Ensure alphabetical order for consistency in scoreboard
+    if player1 > player2 {
+        player1, player2 = player2, player1
+    }
+
+    // We just insert every game score for now, as decided in plan comments (simulated)
+    // Actually, let's just insert.
+	insertSQL := `
+		INSERT INTO pair_scores (player1, player2, score, updated_at)
+		VALUES ($1, $2, $3, CURRENT_TIMESTAMP)
+	`
+	_, err := db.Exec(insertSQL, player1, player2, score)
+	return err
+}
+
 func GetTopScores() ([]ScoreEntry, error) {
 	if db == nil {
 		return nil, fmt.Errorf("database not initialized")
@@ -113,6 +149,28 @@ func GetTopScores() ([]ScoreEntry, error) {
 	for rows.Next() {
 		var entry ScoreEntry
 		if err := rows.Scan(&entry.Nickname, &entry.Score); err != nil {
+			continue
+		}
+		scores = append(scores, entry)
+	}
+	return scores, nil
+}
+
+func GetTopPairScores() ([]PairScoreEntry, error) {
+    if db == nil {
+		return nil, fmt.Errorf("database not initialized")
+	}
+    // Simple top list
+	rows, err := db.Query("SELECT player1, player2, score FROM pair_scores ORDER BY score DESC LIMIT 10")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var scores []PairScoreEntry
+	for rows.Next() {
+		var entry PairScoreEntry
+		if err := rows.Scan(&entry.Player1, &entry.Player2, &entry.Score); err != nil {
 			continue
 		}
 		scores = append(scores, entry)

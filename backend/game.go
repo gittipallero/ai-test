@@ -2,10 +2,30 @@ package main
 
 import (
 	"math/rand"
+	"sync"
 	"time"
 )
 
-func NewGame() *GameState {
+type PlayerState struct {
+	Nickname string   `json:"nickname"`
+	Pos      Position `json:"pos"`
+	Dir      Direction `json:"dir"` // Current movement direction
+	NextDir  Direction `json:"nextDir"` // Buffered next direction
+	Alive    bool     `json:"alive"`
+}
+
+type GameState struct {
+	Grid          [Rows][Cols]int         `json:"grid"`
+	Players       map[string]*PlayerState `json:"players"`
+	Ghosts        []Ghost                 `json:"ghosts"`
+	Score         int                     `json:"score"`
+	PowerModeTime int                     `json:"powerModeTime"`
+	LastEatTime   int64                   `json:"lastEatTime"`
+	GameOver      bool                    `json:"gameOver"`
+	mu            sync.RWMutex            `json:"-"`
+}
+
+func NewGame(nicknames []string) *GameState {
 	// Deep copy grid
 	var grid [Rows][Cols]int
 	for y := 0; y < Rows; y++ {
@@ -14,9 +34,32 @@ func NewGame() *GameState {
 		}
 	}
 
+	players := make(map[string]*PlayerState)
+	
+	// Single player default position
+	startPositions := []Position{
+		{X: 9, Y: 15}, // Player 1
+		{X: 10, Y: 15}, // Player 2 (slightly offset)
+	}
+
+	for i, nick := range nicknames {
+		pos := startPositions[0]
+		if i < len(startPositions) {
+			pos = startPositions[i]
+		}
+		
+		players[nick] = &PlayerState{
+			Nickname: nick,
+			Pos:      pos,
+			Dir:      "",
+			NextDir:  "",
+			Alive:    true,
+		}
+	}
+
 	game := &GameState{
 		Grid:          grid,
-		Pacman:        InitialPacman,
+		Players:       players,
 		Ghosts:        make([]Ghost, len(InitialGhosts)),
 		Score:         0,
 		PowerModeTime: 0,
@@ -27,10 +70,13 @@ func NewGame() *GameState {
 	return game
 }
 
-func (g *GameState) SetNextDirection(dir Direction) {
+func (g *GameState) SetNextDirection(nickname string, dir Direction) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
-	g.NextDirection = dir
+	
+	if p, ok := g.Players[nickname]; ok && p.Alive {
+		p.NextDir = dir
+	}
 }
 
 func (g *GameState) Update() {
@@ -41,7 +87,21 @@ func (g *GameState) Update() {
 		return
 	}
 
-	g.movePacman()
+	// Move all alive players
+    activePlayers := 0
+	for _, p := range g.Players {
+		if p.Alive {
+            activePlayers++
+			g.movePlayer(p)
+		}
+	}
+    
+    // If all players dead, game over
+    if activePlayers == 0 {
+        g.GameOver = true
+        return
+    }
+
 	g.moveGhosts()
 	g.checkCollisions()
 
@@ -50,19 +110,19 @@ func (g *GameState) Update() {
 	}
 }
 
-func (g *GameState) movePacman() {
-	currentDir := g.Direction
+func (g *GameState) movePlayer(p *PlayerState) {
+	currentDir := p.Dir
 
-	if g.NextDirection != "" && g.canMove(g.Pacman, g.NextDirection) {
-		currentDir = g.NextDirection
-		g.Direction = g.NextDirection
+	if p.NextDir != "" && g.canMove(p.Pos, p.NextDir) {
+		currentDir = p.NextDir
+		p.Dir = p.NextDir
 	}
 
-	if currentDir != "" && g.canMove(g.Pacman, currentDir) {
-		newPos := g.getNextPos(g.Pacman, currentDir)
+	if currentDir != "" && g.canMove(p.Pos, currentDir) {
+		newPos := g.getNextPos(p.Pos, currentDir)
 		newPos = g.handleTeleport(newPos)
 		g.handleEating(newPos)
-		g.Pacman = newPos
+		p.Pos = newPos
 	}
 }
 
@@ -160,16 +220,33 @@ func (g *GameState) getValidGhostDirs(ghost *Ghost) []Direction {
 
 func (g *GameState) checkCollisions() {
 	for i, ghost := range g.Ghosts {
-		if ghost.Pos == g.Pacman {
-			// Collision
-			if g.PowerModeTime > 0 {
-				g.Score += 200
-				g.Ghosts[i].Pos = Position{X: 9, Y: 8} // Send home
-			} else {
-				g.GameOver = true
-			}
-		}
+        for _, p := range g.Players {
+            if !p.Alive {
+                continue
+            }
+            if ghost.Pos == p.Pos {
+                // Collision
+                if g.PowerModeTime > 0 {
+                    g.Score += 200
+                    g.Ghosts[i].Pos = Position{X: 9, Y: 8} // Send home
+                } else {
+                    p.Alive = false // Kill player
+                }
+            }
+        }
 	}
+    
+    // Check if any players alive
+    anyAlive := false
+    for _, p := range g.Players {
+        if p.Alive {
+            anyAlive = true
+            break
+        }
+    }
+    if !anyAlive {
+        g.GameOver = true
+    }
 }
 
 func (g *GameState) canMove(pos Position, dir Direction) bool {

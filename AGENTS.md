@@ -94,6 +94,8 @@ The game logic is in `frontend/src/game/`:
 
 ## Testing & Quality
 
+* After any modification, run `make build-frontend` to ensure no TypeScript errors.
+
 ### Before Committing
 
 1. Run linter: `npm run lint` (in frontend/)
