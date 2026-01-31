@@ -67,3 +67,33 @@
     z-index: 10;
     transition: left 0.15s linear, top 0.15s linear;
 }
+
+/* Game Over Overlay */
+.game-over {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 100;
+    background-color: rgba(0, 0, 0, 0.9);
+    border: 4px solid var(--c64-border);
+    padding: 2rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.5rem;
+    box-shadow: 0 0 20px rgba(0,0,0,0.8);
+}
+
+.game-over-text {
+    font-size: 3rem;
+    color: #ff0000;
+    text-shadow: 2px 2px #fff;
+    font-weight: bold;
+    animation: pulse-text 1s infinite alternate;
+}
+
+@keyframes pulse-text {
+    from { transform: scale(1); }
+    to { transform: scale(1.1); }
+}
