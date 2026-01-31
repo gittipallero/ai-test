@@ -106,6 +106,7 @@ The game logic is in `frontend/src/game/`:
 - Use `type` imports for TypeScript types: `import type { ... }`
 - CSS files co-located with components
 - Game state managed with React `useState`
+- **Prefer modularity**: Break large components into smaller, reusable components. Each component should have a single responsibility. Avoid monolithic components—extract dialogs, overlays, and repeated UI patterns into their own component files.
 
 ## Testing & Quality
 

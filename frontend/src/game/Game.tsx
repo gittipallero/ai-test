@@ -1,10 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { INITIAL_MAP, ROWS, COLS, BLOCK_SIZE, INITIAL_GHOSTS, INITIAL_PACMAN } from './constants';
 import type { Direction, Position, GhostEntity } from './constants';
-import GameButton from '../components/GameButton';
+import GameOverDialog from '../components/GameOverDialog';
 import './Game.css';
 
-const Game: React.FC = () => {
+interface GameProps {
+    onLogout: () => void;
+}
+
+const Game: React.FC<GameProps> = ({ onLogout }) => {
     // Deep copy map to handle state (eating dots)
     const [grid, setGrid] = useState<number[][]>(INITIAL_MAP.map(row => [...row]));
     const [pacman, setPacman] = useState<Position>(INITIAL_PACMAN);
@@ -145,30 +149,6 @@ const Game: React.FC = () => {
     };
 
     const checkCollisions = () => {
-        // Need to check current positions
-        // Note: pacman state here is from closure, might be stale in setInterval if not dependencies updated
-        // We added dependencies to useEffect so it resets interval on state change, which works for this simple loop
-        // But for better performance we should use refs or functional updates. 
-        // With functional updates, checking collision is tricky.
-        // Let's do a simple check here based on current render state which is what the effect sees.
-        
-        // Actually, since we update state, the effect re-runs.
-        // We can check collision against the new positions?
-        // Let's rely on the effect dependency update for now. 
-        // We need to check if ANY ghost is at pacman position.
-    
-       // We can iterate ghosts state (but we don't have the *new* ghost state here immediately after setGhosts)
-       // So we should probably check collision in a separate effect or use a ref for updated positions.
-       // However, for simplicity, checking in the next tick or just using the values available is fine.
-       // Let's check against the *current* state (which was used for previous frame).
-       // Or better: check collision in render? No, that's side effect.
-       
-       // Let's simplify: check collision inside the interval using refs would be best, but I'll stick to state.
-       // The interval clears and restarts on every state change because of dependency array. 
-       // This is inefficient but fine for this simple game.
-       
-       // Using the *ghosts* state from closure (which is current render's state).
-       // If a ghost occupies the same tile as pacman.
        const hitGhost = ghosts.find(g => g.pos.x === pacman.x && g.pos.y === pacman.y);
        if (hitGhost) {
            if (powerModeTime > 0) {
@@ -222,17 +202,11 @@ const Game: React.FC = () => {
             ))}
             <div className="score-display">SCORE: {score}</div>
             {gameOver && (
-                <div className="game-over">
-                    <div className="game-over-text">GAME OVER</div>
-                    <GameButton 
-                        onClick={resetGame} 
-                        label="Start New Game" 
-                        className="restart-btn"
-                    />
-                </div>
+                <GameOverDialog onRestart={resetGame} onLogout={onLogout} />
             )}
         </div>
     );
 };
 
 export default Game;
+

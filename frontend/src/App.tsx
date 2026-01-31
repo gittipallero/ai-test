@@ -29,6 +29,11 @@ function App() {
     setUsername(nickname)
   }
 
+  const handleLogout = () => {
+    sessionStorage.removeItem(USERNAME_STORAGE_KEY)
+    setUsername(null)
+  }
+
   return (
     <>
       <header>
@@ -39,7 +44,7 @@ function App() {
       <main>
         <div className="game-container">
           {username ? (
-            <Game />
+            <Game onLogout={handleLogout} />
           ) : (
             <AuthForm onLoginSuccess={handleLoginSuccess} />
           )}
