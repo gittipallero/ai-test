@@ -37,7 +37,10 @@ const Game: React.FC<GameProps> = ({ onLogout, onShowScoreboard, username }) => 
 
     useEffect(() => {
         // Connect to WebSocket
-        const socket = new WebSocket(`ws://localhost:6060/api/ws?nickname=${encodeURIComponent(username)}`);
+        const wsProtocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
+        const wsHost = window.location.host;
+        const wsUrl = `${wsProtocol}://${wsHost}/api/ws?nickname=${encodeURIComponent(username)}`;
+        const socket = new WebSocket(wsUrl);
         
         socket.onopen = () => {
             console.log('Connected to game server');
