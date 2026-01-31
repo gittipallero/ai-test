@@ -181,9 +181,11 @@ func (l *Lobby) StartPairGame(p1, p2 *Client) {
 
 			if err1 != nil || err2 != nil {
 				log.Println("Error writing to client in pair game, ending game")
-                game.GameOver = true // Stop updates
-                // In a real app we might handle reconnection or pause
-                break
+				game.mu.Lock()
+				game.GameOver = true // Stop updates
+				game.mu.Unlock()
+				// In a real app we might handle reconnection or pause
+				break
 			}
 		}
 	}()
