@@ -15,6 +15,7 @@ type Client struct {
 	Lobby    *Lobby
 	mu       sync.RWMutex
 	Game     *GameState // Nil if in lobby/waiting; guarded by mu
+	writeMu  sync.Mutex
 }
 
 func (c *Client) GetGame() *GameState {
@@ -38,6 +39,12 @@ type Lobby struct {
 	unregister chan *Client
 	broadcast  chan []byte
 	mu         sync.Mutex
+}
+
+func (c *Client) WriteJSON(message interface{}) error {
+	c.writeMu.Lock()
+	defer c.writeMu.Unlock()
+	return c.Conn.WriteJSON(message)
 }
 
 func NewLobby() *Lobby {
@@ -121,7 +128,7 @@ func (l *Lobby) JoinPairQueue(client *Client) {
 		}
 		// Use a goroutine to avoid blocking the lock
 		go func() {
-			if err := client.Conn.WriteJSON(msg); err != nil {
+			if err := client.WriteJSON(msg); err != nil {
 				log.Printf("Error sending wait message: %v", err)
 			}
 		}()
@@ -149,8 +156,8 @@ func (l *Lobby) StartPairGame(p1, p2 *Client) {
 			"p1":   p1.Nickname,
 			"p2":   p2.Nickname,
 		}
-		p1.Conn.WriteJSON(startMsg)
-		p2.Conn.WriteJSON(startMsg)
+		p1.WriteJSON(startMsg)
+		p2.WriteJSON(startMsg)
 
 		for range ticker.C {
 			game.Update()
@@ -164,8 +171,8 @@ func (l *Lobby) StartPairGame(p1, p2 *Client) {
 				state := game
 				game.mu.RUnlock()
 
-				p1.Conn.WriteJSON(state)
-				p2.Conn.WriteJSON(state)
+				p1.WriteJSON(state)
+				p2.WriteJSON(state)
 
 				// Save Score
 				SavePairScore(p1.Nickname, p2.Nickname, state.Score)
@@ -181,8 +188,8 @@ func (l *Lobby) StartPairGame(p1, p2 *Client) {
 			// NOTE: We are sending the WHOLE state. P1 and P2 need to know which Pacman they are.
 			// But the client can just check the "Players" map by their nickname.
 
-			err1 := p1.Conn.WriteJSON(game)
-			err2 := p2.Conn.WriteJSON(game)
+			err1 := p1.WriteJSON(game)
+			err2 := p2.WriteJSON(game)
 			game.mu.RUnlock()
 
 			if err1 != nil || err2 != nil {
@@ -223,6 +230,6 @@ func (l *Lobby) BroadcastPlayerCount() {
 	}
 
 	for client := range l.clients {
-		client.Conn.WriteJSON(msg)
+		client.WriteJSON(msg)
 	}
 }

@@ -252,7 +252,7 @@ func startSinglePlayerGame(client *Client) {
             "mode": "single",
              "p1": client.Nickname,
         }
-        client.Conn.WriteJSON(startMsg)
+		client.WriteJSON(startMsg)
 
 		for range ticker.C {
             // Check if client disconnected (handled by lobby unregister closing channel?)
@@ -265,7 +265,7 @@ func startSinglePlayerGame(client *Client) {
 
 			game.mu.RLock()
 			// Send update
-			err := client.Conn.WriteJSON(game)
+			err := client.WriteJSON(game)
             gameOver := game.GameOver
             score := game.Score
 			game.mu.RUnlock()
