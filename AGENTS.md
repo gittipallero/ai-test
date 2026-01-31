@@ -2,6 +2,11 @@
 
 Instructions and context for AI agents working on this codebase.
 
+> [!IMPORTANT]
+> **Also read [README.md](README.md)** for basic information about the game, features, and project structure.
+>
+> **Whenever the project structure or game logic changes, you MUST update README.md** to reflect those changes.
+
 ## Project Overview
 
 This is a **Pacman game clone** with a Commodore 64 retro aesthetic. The project consists of:
