@@ -12,10 +12,6 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-type ScoreResponse struct {
-	HighScore int `json:"highScore"`
-}
-
 type User struct {
 	ID           int    `json:"id"`
 	Nickname     string `json:"nickname"`
