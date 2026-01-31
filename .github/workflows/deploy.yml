@@ -44,6 +44,7 @@ jobs:
 
   restart-app:
     needs: [provision, build-and-deploy]
+    environment: prod
     runs-on: ubuntu-latest
     steps:
       - name: Login to Azure
