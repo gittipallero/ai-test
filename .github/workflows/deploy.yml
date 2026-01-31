@@ -7,6 +7,7 @@ on:
 env:
   RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
   LOCATION: ${{ vars.AZURE_LOCATION }}
+  POSTGRES_LOCATION: ${{ vars.AZURE_POSTGRES_LOCATION || 'westus2' }}
   DEPLOYMENT_NAME: pacman-deployment
 
 concurrency:
@@ -44,7 +45,7 @@ jobs:
           resourceGroupName: ${{ env.RESOURCE_GROUP }}
           template: ./infra/main.bicep
           deploymentName: ${{ env.DEPLOYMENT_NAME }}
-          parameters: postgresAdminPassword=${{ secrets.POSTGRES_ADMIN_PASSWORD }}
+          parameters: postgresAdminPassword=${{ secrets.POSTGRES_ADMIN_PASSWORD }} postgresLocation=${{ env.POSTGRES_LOCATION }}
 
       - name: Derive Deployment Outputs
         id: deploy_outputs

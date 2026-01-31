@@ -15,9 +15,9 @@
     },
     "postgresLocation": {
       "type": "string",
-      "defaultValue": "eastus",
+      "defaultValue": "westus2",
       "metadata": {
-        "description": "Location for PostgreSQL. Defaults to eastus due to availability restrictions in some regions."
+        "description": "Location for PostgreSQL. Defaults to westus2 due to availability restrictions in some regions."
       }
     },
     "applicationName": {
