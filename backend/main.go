@@ -13,18 +13,17 @@ import (
 )
 
 var upgrader = websocket.Upgrader{
-	CheckOrigin: func(r *http.Request) bool {
-		return true // Allow all origins for simplicity in this demo
-	},
+	CheckOrigin: CheckOrigin, // Validate origin against allowed list from ALLOWED_ORIGINS env var
 }
 
 func main() {
 	InitDB()
+	CleanupExpiredSessions() // Start session cleanup goroutine
 	mux := http.NewServeMux()
 
-    // Initialize Lobby
-    lobby := NewLobby()
-    go lobby.Run()
+	// Initialize Lobby
+	lobby := NewLobby()
+	go lobby.Run()
 
 	// Serve static files from frontend/dist
 	rootDir := "."
@@ -36,15 +35,23 @@ func main() {
 	mux.Handle("/", fs)
 
 	mux.HandleFunc("/api/ws", func(w http.ResponseWriter, r *http.Request) {
+		// Validate session token for WebSocket authentication
+		token := r.URL.Query().Get("token")
+		if token == "" {
+			http.Error(w, "Missing authentication token", http.StatusUnauthorized)
+			return
+		}
+
+		nickname, valid := ValidateSession(token)
+		if !valid {
+			http.Error(w, "Invalid or expired session", http.StatusUnauthorized)
+			return
+		}
+
 		conn, err := upgrader.Upgrade(w, r, nil)
 		if err != nil {
 			fmt.Println("Upgrade error:", err)
 			return
-		}
-		
-		nickname := r.URL.Query().Get("nickname")
-		if nickname == "" {
-			nickname = "Anonymous"
 		}
 
         client := &Client{
@@ -181,9 +188,21 @@ func main() {
 			return
 		}
 
+		// Create session token for newly registered user (auto-login)
+		session, err := CreateSession(req.Nickname)
+		if err != nil {
+			fmt.Println("Session creation error:", err)
+			http.Error(w, "Server error", http.StatusInternalServerError)
+			return
+		}
+
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
-		json.NewEncoder(w).Encode(map[string]string{"message": "User created", "nickname": req.Nickname})
+		json.NewEncoder(w).Encode(map[string]string{
+			"message":  "User created",
+			"nickname": req.Nickname,
+			"token":    session.Token,
+		})
 	})
 
 	mux.HandleFunc("/api/login", func(w http.ResponseWriter, r *http.Request) {
@@ -205,9 +224,21 @@ func main() {
 			return
 		}
 
+		// Create session token for authenticated user
+		session, err := CreateSession(req.Nickname)
+		if err != nil {
+			fmt.Println("Session creation error:", err)
+			http.Error(w, "Server error", http.StatusInternalServerError)
+			return
+		}
+
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(map[string]string{"message": "Login successful", "nickname": req.Nickname})
+		json.NewEncoder(w).Encode(map[string]string{
+			"message":  "Login successful",
+			"nickname": req.Nickname,
+			"token":    session.Token,
+		})
 	})
 
 	// Middleware for security headers
