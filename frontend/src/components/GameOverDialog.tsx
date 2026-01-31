@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import GameButton from './GameButton';
 import './GameOverDialog.css';
 
@@ -8,9 +8,7 @@ interface GameOverDialogProps {
     onShowScoreboard: () => void;
     onStartPairGame: () => void;
     showPairButton: boolean;
-    shouldSubmitScore: boolean;
     score: number;
-    nickname: string;
 }
 
 const GameOverDialog: React.FC<GameOverDialogProps> = ({ 
@@ -19,25 +17,8 @@ const GameOverDialog: React.FC<GameOverDialogProps> = ({
     onShowScoreboard,
     onStartPairGame,
     showPairButton,
-    shouldSubmitScore,
-    score,
-    nickname
+    score
 }) => {
-    // Submit score when game over dialog mounts
-    useEffect(() => {
-        if (shouldSubmitScore && nickname && score > 0) {
-            fetch('/api/score', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ nickname, score })
-            })
-            .then(res => {
-                if (!res.ok) console.error('Failed to submit score');
-            })
-            .catch(err => console.error('Score submission error:', err));
-        }
-    }, [shouldSubmitScore, nickname, score]);
-
     return (
         <div className="game-over">
             <div className="game-over-text">GAME OVER</div>

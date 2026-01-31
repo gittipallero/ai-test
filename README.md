@@ -13,6 +13,7 @@ A classic Pacman game clone with a **Commodore 64 retro aesthetic**, built with 
 - 👻 4 ghosts (red, pink, cyan, orange) with AI movement
 - ⚡ Power pellet mechanic with 5-second power mode
 - 🎯 Score tracking and collision detection
+- 🏆 Scores persisted server-side on game over
 - 🔐 User authentication (signup/login)
 - 🎨 Retro C64-style visual design
 
@@ -25,13 +26,16 @@ A classic Pacman game clone with a **Commodore 64 retro aesthetic**, built with 
 │   │   ├── App.tsx              # Main app component
 │   │   ├── App.css              # App styling
 │   │   ├── game/
-│   │   │   ├── Game.tsx         # Core game logic and rendering
+│   │   │   ├── Game.tsx         # Game screen + socket handling
+│   │   │   ├── GameBoard.tsx    # Board rendering layers
 │   │   │   ├── Game.css         # Game styling
 │   │   │   └── constants.ts     # Game constants, types, and map data
 │   │   ├── components/
 │   │   │   ├── AuthForm.tsx     # User authentication form
 │   │   │   ├── GameButton.tsx   # Reusable game button component
-│   │   │   └── GameOverDialog.tsx # Game over dialog component
+│   │   │   ├── GameOverDialog.tsx # Game over dialog component
+│   │   │   ├── ScoreBoard.tsx   # High score view
+│   │   │   └── TouchControls.tsx # Mobile touch controls
 │   │   └── main.tsx             # Entry point
 │   └── package.json
 │

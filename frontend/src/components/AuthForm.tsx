@@ -54,8 +54,12 @@ export default function AuthForm({ onLoginSuccess }: AuthFormProps) {
         setIsLoginMode(true)
         setAuthPassword('')
       }
-    } catch (err: any) {
-      setAuthError(err.message)
+    } catch (err) {
+      if (err instanceof Error) {
+        setAuthError(err.message)
+      } else {
+        setAuthError('An unexpected error occurred.')
+      }
     }
   }
 

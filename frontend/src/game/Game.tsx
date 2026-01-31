@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { ROWS, COLS, BLOCK_SIZE } from './constants';
-import type { Direction, Position, GhostEntity } from './constants';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { COLS, BLOCK_SIZE } from './constants';
+import type { Direction, GameMode, GameState, LobbyStats } from './constants';
+import GameBoard from './GameBoard';
 import GameOverDialog from '../components/GameOverDialog';
 import TouchControls from '../components/TouchControls';
 
@@ -13,31 +14,11 @@ interface GameProps {
     username: string;
 }
 
-interface PlayerState {
-    nickname: string;
-    pos: Position;
-    dir: Direction;
-    alive: boolean;
-}
-
-interface GameState {
-    grid: number[][];
-    players: Record<string, PlayerState>;
-    ghosts: GhostEntity[];
-    score: number;
-    gameOver: boolean;
-    powerModeTime: number;
-}
-
-interface LobbyStats {
-    online_count: number;
-}
-
 const Game: React.FC<GameProps> = ({ onLogout, onShowScoreboard, onOnlineCountChange, username }) => {
     const [gameState, setGameState] = useState<GameState | null>(null);
     const [waiting, setWaiting] = useState(false);
     const [lobbyStats, setLobbyStats] = useState<LobbyStats>({ online_count: 0 });
-    const [gameMode, setGameMode] = useState<'single' | 'pair' | null>(null);
+    const [gameMode, setGameMode] = useState<GameMode>(null);
     const [scale, setScale] = useState(1);
     
     // Derived state for local player
@@ -112,7 +93,7 @@ const Game: React.FC<GameProps> = ({ onLogout, onShowScoreboard, onOnlineCountCh
         };
     }, [username, onOnlineCountChange]);
 
-    const handleDirectionInput = (dir: Direction) => {
+    const handleDirectionInput = useCallback((dir: Direction) => {
         const currentSocket = ws.current;
         if (gameState?.gameOver || !currentSocket || currentSocket.readyState !== WebSocket.OPEN) {
             return;
@@ -121,7 +102,7 @@ const Game: React.FC<GameProps> = ({ onLogout, onShowScoreboard, onOnlineCountCh
             setLocalDirection(dir);
             currentSocket.send(JSON.stringify({ type: 'input', direction: dir }));
         }
-    };
+    }, [gameState?.gameOver]);
 
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
@@ -138,7 +119,7 @@ const Game: React.FC<GameProps> = ({ onLogout, onShowScoreboard, onOnlineCountCh
         };
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [gameState?.gameOver]);
+    }, [handleDirectionInput]);
 
     const handleStartPairGame = () => {
         if (ws.current) {
@@ -172,85 +153,34 @@ const Game: React.FC<GameProps> = ({ onLogout, onShowScoreboard, onOnlineCountCh
     }
 
     const { grid, players, ghosts, score, gameOver, powerModeTime } = gameState;
-    const boardWidth = COLS * BLOCK_SIZE;
-    const boardHeight = ROWS * BLOCK_SIZE;
     
     return (
         <div className="game-wrapper">
              <div className="game-header">
                 {/* Online count moved to App header */}
             </div>
-
-            <div className="game-board-container" style={{ 
-                width: boardWidth, 
-                height: boardHeight,
-                transform: `scale(${scale})`,
-                transformOrigin: 'top center',
-                marginBottom: (boardHeight * scale) - boardHeight // correct layout flow after scaling
-            }}>
-                <div className="game-board" style={{ width: boardWidth, height: boardHeight }}>
-                    {grid.map((row, y) => (
-                        row.map((cell, x) => (
-                            <div key={`${x}-${y}`} className={`cell cell-${cell}`} style={{
-                                left: x * BLOCK_SIZE,
-                                top: y * BLOCK_SIZE,
-                                width: BLOCK_SIZE,
-                                height: BLOCK_SIZE
-                            }}></div>
-                        ))
-                    ))}
-                    
-                    {Object.values(players).map((p) => (
-                        p.alive && (
-                            <div key={p.nickname} className={`pacman pacman-${p.dir || localDirection || 'RIGHT'}`} style={{
-                                left: p.pos.x * BLOCK_SIZE,
-                                top: p.pos.y * BLOCK_SIZE,
-                                width: BLOCK_SIZE,
-                                height: BLOCK_SIZE,
-                                filter: p.nickname !== username ? 'hue-rotate(180deg)' : 'none'
-                            }}>
-                                 <div className="player-name" style={{
-                                     position: 'absolute',
-                                     top: '-15px',
-                                     left: '50%',
-                                     transform: 'translateX(-50%)',
-                                     fontSize: '10px',
-                                     color: 'white',
-                                     whiteSpace: 'nowrap'
-                                 }}>{p.nickname}</div>
-                            </div>
-                        )
-                    ))}
-
-                    {ghosts.map(ghost => (
-                        <div key={ghost.id} className="ghost" style={{
-                            left: ghost.pos.x * BLOCK_SIZE,
-                            top: ghost.pos.y * BLOCK_SIZE,
-                            width: BLOCK_SIZE,
-                            height: BLOCK_SIZE,
-                            backgroundColor: powerModeTime > 0 ? 'blue' : ghost.color
-                        }}></div>
-                    ))}
-                    
-                    <div className="score-display">
-                        {gameMode === 'pair' ? 'PAIR SCORE: ' : 'SCORE: '} 
-                        {score}
-                    </div>
-                    
-                    {gameOver && (
-                        <GameOverDialog 
-                            onRestart={handleRestart} 
-                            onLogout={onLogout}
-                            onShowScoreboard={onShowScoreboard}
-                            onStartPairGame={handleStartPairGame}
-                            showPairButton={lobbyStats.online_count > 1}
-                            shouldSubmitScore={gameMode === 'single'}
-                            score={score}
-                            nickname={username}
-                        />
-                    )}
-                </div>
-            </div>
+            <GameBoard
+                grid={grid}
+                players={players}
+                ghosts={ghosts}
+                score={score}
+                gameMode={gameMode}
+                powerModeTime={powerModeTime}
+                localDirection={localDirection}
+                username={username}
+                scale={scale}
+            >
+                {gameOver && (
+                    <GameOverDialog 
+                        onRestart={handleRestart} 
+                        onLogout={onLogout}
+                        onShowScoreboard={onShowScoreboard}
+                        onStartPairGame={handleStartPairGame}
+                        showPairButton={lobbyStats.online_count > 1}
+                        score={score}
+                    />
+                )}
+            </GameBoard>
 
             <TouchControls onDirectionChange={handleDirectionInput} />
         </div>

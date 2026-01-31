@@ -47,6 +47,28 @@ export interface GhostEntity {
     color: string;
 }
 
+export type GameMode = 'single' | 'pair' | null;
+
+export interface PlayerState {
+  nickname: string;
+  pos: Position;
+  dir: Direction;
+  alive: boolean;
+}
+
+export interface GameState {
+  grid: number[][];
+  players: Record<string, PlayerState>;
+  ghosts: GhostEntity[];
+  score: number;
+  gameOver: boolean;
+  powerModeTime: number;
+}
+
+export interface LobbyStats {
+  online_count: number;
+}
+
 export const INITIAL_PACMAN: Position = { x: 9, y: 15 };
 
 export const INITIAL_GHOSTS: GhostEntity[] = [
