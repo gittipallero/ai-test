@@ -6,6 +6,8 @@ interface GameOverDialogProps {
     onRestart: () => void;
     onLogout: () => void;
     onShowScoreboard: () => void;
+    onStartPairGame: () => void;
+    showPairButton: boolean;
     score: number;
     nickname: string;
 }
@@ -14,6 +16,8 @@ const GameOverDialog: React.FC<GameOverDialogProps> = ({
     onRestart, 
     onLogout, 
     onShowScoreboard,
+    onStartPairGame,
+    showPairButton,
     score,
     nickname
 }) => {
@@ -46,6 +50,13 @@ const GameOverDialog: React.FC<GameOverDialogProps> = ({
                 label="Score Board" 
                 className="scoreboard-btn"
             />
+            {showPairButton && (
+                <GameButton 
+                    onClick={onStartPairGame} 
+                    label="Start Pair Game" 
+                    className="pair-setup-btn"
+                />
+            )}
             <GameButton 
                 onClick={onLogout} 
                 label="Logout" 

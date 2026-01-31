@@ -11,6 +11,7 @@ type ViewState = 'game' | 'scoreboard'
 function App() {
   const [username, setUsername] = useState<string | null>(null)
   const [currentView, setCurrentView] = useState<ViewState>('game')
+  const [onlineCount, setOnlineCount] = useState<number>(0)
 
   useEffect(() => {
     const stored = sessionStorage.getItem(USERNAME_STORAGE_KEY)
@@ -29,6 +30,7 @@ function App() {
     sessionStorage.removeItem(USERNAME_STORAGE_KEY)
     setUsername(null)
     setCurrentView('game')
+    setOnlineCount(0)
   }
 
   const handleShowScoreboard = () => {
@@ -45,6 +47,7 @@ function App() {
         <h1>*** PACMAN C64 ***</h1>
         <p>{username ? 'READY.' : 'AUTHENTICATION REQUIRED.'}</p>
         {username && <p>PLAYER: {username}</p>}
+        {username && <p>ONLINE: {onlineCount}</p>}
       </header>
       <main>
         <div className="game-container">
@@ -56,6 +59,7 @@ function App() {
             <Game 
               onLogout={handleLogout}
               onShowScoreboard={handleShowScoreboard}
+              onOnlineCountChange={setOnlineCount}
               username={username}
             />
           )}

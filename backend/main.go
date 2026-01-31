@@ -21,6 +21,10 @@ func main() {
 	InitDB()
 	mux := http.NewServeMux()
 
+    // Initialize Lobby
+    lobby := NewLobby()
+    go lobby.Run()
+
 	// Serve static files from frontend/dist
 	rootDir := "."
 	if _, err := os.Stat("frontend/dist"); os.IsNotExist(err) {
@@ -36,67 +40,53 @@ func main() {
 			fmt.Println("Upgrade error:", err)
 			return
 		}
-		defer conn.Close()
-
+		
 		nickname := r.URL.Query().Get("nickname")
 		if nickname == "" {
 			nickname = "Anonymous"
 		}
 
-		game := NewGame()
-
-		// Handle Input
-		go func() {
-			for {
-				var msg map[string]string
-				if err := conn.ReadJSON(&msg); err != nil {
-					return
-				}
-				if dir, ok := msg["direction"]; ok {
-					game.SetNextDirection(Direction(dir))
-				}
-			}
-		}()
-
-		// Game Loop
-		ticker := time.NewTicker(150 * time.Millisecond)
-		defer ticker.Stop()
-
-		for range ticker.C {
-			game.Update()
-
-			game.mu.RLock()
-			gameOver := game.GameOver
-			score := game.Score
-			// Create a clean state object to send
-			// We can just send the game object since fields are exported and tagged
-			// But we must marshal inside lock to prevent race on slices
-			bytes, err := json.Marshal(game)
-			game.mu.RUnlock()
-
-			if err != nil {
-				fmt.Println("Marshal error:", err)
-				break
-			}
-
-			if err := conn.WriteMessage(websocket.TextMessage, bytes); err != nil {
-				break
-			}
-
-			if gameOver {
-				// Save score
-				if err := SaveScore(nickname, score); err != nil {
-					fmt.Println("Failed to save score:", err)
-				} else {
-					fmt.Println("Score saved for", nickname, ":", score)
-				}
-				// Give meaningful time for client to receive GameOver state before closing
-				time.Sleep(500 * time.Millisecond)
-				// We don't break immediately, let the client disconnect or just stop sending updates?
-				// Actually, we should probably stop the loop.
-				break
-			}
-		}
+        client := &Client{
+            Nickname: nickname,
+            Conn:     conn,
+            Send:     make(chan []byte, 256),
+            Lobby:    lobby,
+        }
+        
+        lobby.register <- client
+        
+        // Handle incoming messages
+        go func() {
+            defer func() {
+                lobby.unregister <- client
+                conn.Close()
+            }()
+            
+            for {
+                var msg map[string]interface{}
+                if err := conn.ReadJSON(&msg); err != nil {
+                    break
+                }
+                
+                msgType, ok := msg["type"].(string)
+                if !ok {
+                   // Fallback for legacy single player directional input which might just be { direction: "..." }
+                   if _, ok := msg["direction"]; ok {
+                        handleGameInput(client, msg)
+                   }
+                   continue
+                }
+                
+                switch msgType {
+                case "join_pair":
+                    lobby.JoinPairQueue(client)
+                case "input":
+                    handleGameInput(client, msg)
+                case "start_single":
+                     startSinglePlayerGame(client)
+                }
+            }
+        }()
 	})
 
 	mux.HandleFunc("/api/score", func(w http.ResponseWriter, r *http.Request) {
@@ -126,6 +116,7 @@ func main() {
 	})
 
 	mux.HandleFunc("/api/scoreboard", func(w http.ResponseWriter, r *http.Request) {
+        // ... existing single player scoreboard ...
 		if r.Method != http.MethodGet {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
@@ -137,6 +128,26 @@ func main() {
 		scores, err := GetTopScores()
 		if err != nil {
 			fmt.Println("Scoreboard query error:", err)
+			http.Error(w, "Database error", http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(scores)
+	})
+    
+    mux.HandleFunc("/api/scoreboard/pair", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		if !RequireDB(w) {
+			return
+		}
+
+		scores, err := GetTopPairScores()
+		if err != nil {
+			fmt.Println("PairScoreboard query error:", err)
 			http.Error(w, "Database error", http.StatusInternalServerError)
 			return
 		}
@@ -207,4 +218,71 @@ func main() {
 	if err := http.ListenAndServe(":6060", handler); err != nil {
 		fmt.Println("Error starting server:", err)
 	}
+}
+
+func handleGameInput(client *Client, msg map[string]interface{}) {
+    if client.Game == nil {
+        return
+    }
+    // Expected: { "direction": "UP/DOWN..." }
+    if dirVal, ok := msg["direction"].(string); ok {
+        client.Game.SetNextDirection(client.Nickname, Direction(dirVal))
+    }
+}
+
+func startSinglePlayerGame(client *Client) {
+    // Similar to old main loop but running in goroutine per client (or associated with client)
+    // Actually, client.Game stores the state.
+    
+    // If already in game, stop it?
+    // Let's assume start_single starts a new one.
+    
+    game := NewGame([]string{client.Nickname})
+    client.Game = game
+    
+    // Start Ticker Loop for this single player game
+    go func() {
+        ticker := time.NewTicker(150 * time.Millisecond)
+		defer ticker.Stop()
+        
+        // Notify start
+        startMsg := map[string]interface{}{
+            "type": "game_start", 
+            "mode": "single",
+             "p1": client.Nickname,
+        }
+        client.Conn.WriteJSON(startMsg)
+
+		for range ticker.C {
+            // Check if client disconnected (handled by lobby unregister closing channel?)
+            // We can check if client.Game is still this game
+            if client.Game != game {
+                return 
+            }
+            
+			game.Update()
+
+			game.mu.RLock()
+			// Send update
+			err := client.Conn.WriteJSON(game)
+            gameOver := game.GameOver
+            score := game.Score
+			game.mu.RUnlock()
+
+			if err != nil {
+				break
+			}
+
+			if gameOver {
+				// Save score
+				if err := SaveScore(client.Nickname, score); err != nil {
+					fmt.Println("Failed to save score:", err)
+				}
+				// Sleep a bit and stop
+				time.Sleep(500 * time.Millisecond)
+                client.Game = nil
+				break
+			}
+		}
+    }()
 }
