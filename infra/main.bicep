@@ -1,6 +1,6 @@
 param location string = resourceGroup().location
 @description('Location for PostgreSQL. Defaults to westus2 due to availability restrictions in some regions.')
-param postgresLocation string = 'westus2'
+param postgresLocation string = 'swedencentral'
 param applicationName string = 'pacman-app'
 param environment string = 'dev'
 @secure()
