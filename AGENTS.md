@@ -14,27 +14,6 @@ This is a **Pacman game clone** with a Commodore 64 retro aesthetic. The project
 - **Frontend**: React 19 + TypeScript + Vite
 - **Backend**: Go HTTP server
 
-## Project Structure
-
-```
-/
-├── frontend/           # React application
-│   ├── src/
-│   │   ├── App.tsx          # Main app with username input
-│   │   ├── App.css          # App styling
-│   │   ├── game/
-│   │   │   ├── Game.tsx     # Core game logic and rendering
-│   │   │   ├── Game.css     # Game styling
-│   │   │   └── constants.ts # Game constants, types, and map data
-│   │   └── main.tsx         # Entry point
-│   └── package.json
-├── backend/            # Go server
-│   ├── main.go              # HTTP server (serves static files + API)
-│   └── go.mod
-├── Makefile            # Build commands
-└── AGENTS.md           # This file
-```
-
 ## Development Commands
 
 ### Using Make
