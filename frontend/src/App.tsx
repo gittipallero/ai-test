@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import Game from './game/Game'
 import AuthForm from './components/AuthForm'
 import ScoreBoard from './components/ScoreBoard'
@@ -9,17 +9,13 @@ const USERNAME_STORAGE_KEY = 'pacman.username'
 type ViewState = 'game' | 'scoreboard'
 
 function App() {
-  const [username, setUsername] = useState<string | null>(null)
-  const [currentView, setCurrentView] = useState<ViewState>('game')
-  const [onlineCount, setOnlineCount] = useState<number>(0)
-
-  useEffect(() => {
+  const [username, setUsername] = useState<string | null>(() => {
     const stored = sessionStorage.getItem(USERNAME_STORAGE_KEY)
     const trimmed = stored?.trim()
-    if (trimmed) {
-      setUsername(trimmed)
-    }
-  }, [])
+    return trimmed || null
+  })
+  const [currentView, setCurrentView] = useState<ViewState>('game')
+  const [onlineCount, setOnlineCount] = useState<number>(0)
 
   const handleLoginSuccess = (nickname: string) => {
     sessionStorage.setItem(USERNAME_STORAGE_KEY, nickname)

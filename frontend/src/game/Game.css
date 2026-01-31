@@ -113,6 +113,13 @@
 }
 
 .player-name {
+    position: absolute;
+    top: -15px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 10px;
+    color: white;
+    white-space: nowrap;
     text-shadow: 1px 1px 0 #000;
     pointer-events: none;
 }
