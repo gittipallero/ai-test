@@ -77,6 +77,9 @@ func initDB() {
 	_, err = db.Exec(createTableSQL)
 	if err != nil {
 		fmt.Printf("Error creating table: %v\n", err)
+		_ = db.Close()
+		db = nil
+		return
 	}
 	fmt.Println("Database initialized successfully")
 }
