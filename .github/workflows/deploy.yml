@@ -1,0 +1,97 @@
+name: Deploy to Azure
+
+on:
+  release:
+    types: [published]
+
+env:
+  RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+  LOCATION: ${{ vars.AZURE_LOCATION }}
+  DEPLOYMENT_NAME: pacman-deployment
+
+jobs:
+  deploy: 
+    runs-on: ubuntu-latest
+    environment: prod
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Login to Azure
+        uses: azure/login@v2
+        with:
+          creds: |
+            {
+              "clientId": "${{ secrets.AZURE_CLIENT_ID }}",
+              "clientSecret": "${{ secrets.AZURE_CLIENT_SECRET }}",
+              "subscriptionId": "${{ secrets.AZURE_SUBSCRIPTION_ID }}",
+              "tenantId": "${{ secrets.AZURE_TENANT_ID }}"
+            }
+
+      - name: Create Resource Group
+        run: |
+          az group create --name ${{ env.RESOURCE_GROUP }} --location ${{ env.LOCATION }} || true
+
+      - name: Deploy Infrastructure
+        uses: azure/arm-deploy@v2
+        id: deploy
+        with:
+          resourceGroupName: ${{ env.RESOURCE_GROUP }}
+          template: ./infra/main.bicep
+          deploymentName: ${{ env.DEPLOYMENT_NAME }}
+          parameters: postgresAdminPassword=${{ secrets.POSTGRES_ADMIN_PASSWORD }}
+
+      - name: Get ACR Login Server
+        id: acr
+        run: |
+          ACR_LOGIN_SERVER=$(az deployment group show \
+            --resource-group ${{ env.RESOURCE_GROUP }} \
+            --name ${{ env.DEPLOYMENT_NAME }} \
+            --query properties.outputs.acrLoginServer.value -o tsv)
+          echo "login_server=$ACR_LOGIN_SERVER" >> $GITHUB_OUTPUT
+          ACR_NAME=$(echo $ACR_LOGIN_SERVER | cut -d. -f1)
+          echo "acr_name=$ACR_NAME" >> $GITHUB_OUTPUT
+
+      - name: Get Web App Name
+        id: webapp
+        run: |
+          WEB_APP_URL=$(az deployment group show \
+            --resource-group ${{ env.RESOURCE_GROUP }} \
+            --name ${{ env.DEPLOYMENT_NAME }} \
+            --query properties.outputs.webAppUrl.value -o tsv)
+          WEB_APP_NAME=$(echo $WEB_APP_URL | awk -F/ '{print $3}' | awk -F. '{print $1}')
+          echo "name=$WEB_APP_NAME" >> $GITHUB_OUTPUT
+          echo "url=$WEB_APP_URL" >> $GITHUB_OUTPUT
+
+      - name: Login to ACR
+        run: |
+          az acr login --name ${{ steps.acr.outputs.acr_name }}
+
+      - name: Build and Push Docker Image
+        env:
+          IMAGE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          IMAGE_NAME="${{ steps.acr.outputs.login_server }}/pacman:$IMAGE_TAG"
+          IMAGE_LATEST="${{ steps.acr.outputs.login_server }}/pacman:latest"
+          
+          # Build the image with release tag
+          docker build -t $IMAGE_NAME -t $IMAGE_LATEST .
+          
+          # Push both tags
+          docker push $IMAGE_NAME
+          docker push $IMAGE_LATEST
+
+      - name: Restart Web App
+        run: |
+          az webapp restart \
+            --name ${{ steps.webapp.outputs.name }} \
+            --resource-group ${{ env.RESOURCE_GROUP }}
+
+      - name: Deployment Summary
+        run: |
+          echo "## Deployment Complete! 🚀" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Release:** ${{ github.event.release.tag_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**App URL:** ${{ steps.webapp.outputs.url }}" >> $GITHUB_STEP_SUMMARY
