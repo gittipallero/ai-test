@@ -2,15 +2,18 @@ package main
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
 
-	_ "github.com/lib/pq"
+	"github.com/lib/pq"
 	"golang.org/x/crypto/bcrypt"
 )
 
 var db *sql.DB
+
+var ErrUsernameTaken = errors.New("username already taken")
 
 func RequireDB(w http.ResponseWriter) bool {
 	if db == nil {
@@ -123,10 +126,24 @@ func CreateUser(nickname, password string) error {
 	}
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
-		return err
+		return fmt.Errorf("hash password: %w", err)
 	}
 	_, err = db.Exec("INSERT INTO users (nickname, password_hash) VALUES ($1, $2)", nickname, string(hashedPassword))
-	return err
+	if err != nil {
+		if isUniqueViolation(err) {
+			return ErrUsernameTaken
+		}
+		return fmt.Errorf("insert user: %w", err)
+	}
+	return nil
+}
+
+func isUniqueViolation(err error) bool {
+	var pqErr *pq.Error
+	if errors.As(err, &pqErr) {
+		return pqErr.Code == "23505"
+	}
+	return false
 }
 
 func VerifyUser(nickname, password string) error {

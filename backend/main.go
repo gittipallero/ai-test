@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -161,7 +162,11 @@ func main() {
 
 		if err := CreateUser(req.Nickname, req.Password); err != nil {
 			fmt.Println("Signup error:", err)
-			http.Error(w, "Username already taken or database error", http.StatusConflict)
+			if errors.Is(err, ErrUsernameTaken) {
+				http.Error(w, "Username already taken", http.StatusConflict)
+			} else {
+				http.Error(w, "Server error", http.StatusInternalServerError)
+			}
 			return
 		}
 
