@@ -27,7 +27,12 @@ A classic Pacman game clone with a **Commodore 64 retro aesthetic**, built with 
 │   │   ├── App.css              # App styling
 │   │   ├── game/
 │   │   │   ├── Game.tsx         # Game screen + socket handling
-│   │   │   ├── GameBoard.tsx    # Board rendering layers
+│   │   │   ├── GameBoard/       # Board rendering layers
+│   │   │   │   ├── index.tsx
+│   │   │   │   ├── GridLayer.tsx
+│   │   │   │   ├── PlayerLayer.tsx
+│   │   │   │   ├── GhostLayer.tsx
+│   │   │   │   └── ScoreDisplay.tsx
 │   │   │   ├── Game.css         # Game styling
 │   │   │   └── constants.ts     # Game constants, types, and map data
 │   │   ├── components/
