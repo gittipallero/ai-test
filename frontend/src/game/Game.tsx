@@ -133,7 +133,6 @@ const Game: React.FC<GameProps> = ({ onLogout, onShowScoreboard, username }) => 
                     onLogout={onLogout}
                     onShowScoreboard={onShowScoreboard}
                     score={score}
-                    nickname={username}
                 />
             )}
         </div>
