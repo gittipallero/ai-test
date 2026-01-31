@@ -39,7 +39,7 @@
     "webAppName": "[format('app-{0}-{1}', parameters('applicationName'), parameters('environment'))]",
     "dockerImageName": "pacman",
     "dockerImageTag": "latest",
-    "postgresServerName": "[format('psql-{0}', variables('uniqueSuffix'))]"
+    "postgresServerName": "[format('psql-{0}', uniqueString(resourceGroup().id, parameters('postgresLocation')))]"
   },
   "resources": [
     {
