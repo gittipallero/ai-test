@@ -9,6 +9,10 @@ env:
   LOCATION: ${{ vars.AZURE_LOCATION }}
   DEPLOYMENT_NAME: pacman-deployment
 
+concurrency:
+  group: deploy-prod
+  cancel-in-progress: true
+
 jobs:
   deploy: 
     runs-on: ubuntu-latest
