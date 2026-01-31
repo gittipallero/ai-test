@@ -50,15 +50,15 @@
     border-bottom: 1px solid rgba(135, 116, 211, 0.3);
 }
 
-.scoreboard-row:nth-child(1) {
+.scoreboard-row:nth-child(2) {
     color: gold;
 }
 
-.scoreboard-row:nth-child(2) {
+.scoreboard-row:nth-child(3) {
     color: silver;
 }
 
-.scoreboard-row:nth-child(3) {
+.scoreboard-row:nth-child(4) {
     color: #cd7f32;
 }
 

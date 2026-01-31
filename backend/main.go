@@ -20,10 +20,6 @@ var upgrader = websocket.Upgrader{
 	},
 }
 
-type ScoreResponse struct {
-	HighScore int `json:"highScore"`
-}
-
 type User struct {
 	ID           int    `json:"id"`
 	Nickname     string `json:"nickname"`
