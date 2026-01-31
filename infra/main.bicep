@@ -13,8 +13,8 @@ var webAppName = 'app-${applicationName}-${environment}'
 var dockerImageName = 'pacman'
 var dockerImageTag = 'latest'
 
-
-var postgresServerName = 'psql-${uniqueSuffix}'
+// Include location in the postgres server name to ensure uniqueness when location changes
+var postgresServerName = 'psql-${uniqueString(resourceGroup().id, postgresLocation)}'
 
 module acrModule 'modules/acr.bicep' = {
   name: 'acrDeploy'
