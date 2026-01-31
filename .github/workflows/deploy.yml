@@ -89,9 +89,11 @@ jobs:
             --resource-group ${{ env.RESOURCE_GROUP }}
 
       - name: Deployment Summary
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
         run: |
           echo "## Deployment Complete! 🚀" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Release:** ${{ github.event.release.tag_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Release:** $RELEASE_TAG" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**App URL:** ${{ steps.webapp.outputs.url }}" >> $GITHUB_STEP_SUMMARY
