@@ -1,0 +1,24 @@
+.game-button {
+    background-color: var(--c64-bg);
+    color: var(--c64-fg);
+    border: 2px solid var(--c64-fg);
+    padding: 10px 20px;
+    font-family: 'Press Start 2P', monospace; /* Assuming retro font or similar available */
+    font-size: 14px;
+    cursor: pointer;
+    text-transform: uppercase;
+    transition: all 0.2s ease;
+    box-shadow: 4px 4px 0px rgba(0,0,0,0.5);
+}
+
+.game-button:hover {
+    background-color: var(--c64-fg);
+    color: var(--c64-bg);
+    transform: translate(2px, 2px);
+    box-shadow: 2px 2px 0px rgba(0,0,0,0.5);
+}
+
+.game-button:active {
+    transform: translate(4px, 4px);
+    box-shadow: none;
+}

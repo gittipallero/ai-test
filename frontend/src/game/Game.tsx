@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { INITIAL_MAP, ROWS, COLS, BLOCK_SIZE, INITIAL_GHOSTS } from './constants';
 import type { Direction, Position, GhostEntity } from './constants';
+import GameButton from '../components/GameButton';
 import './Game.css';
 
 const Game: React.FC = () => {
@@ -222,10 +223,12 @@ const Game: React.FC = () => {
             <div className="score-display">SCORE: {score}</div>
             {gameOver && (
                 <div className="game-over">
-                    <div>GAME OVER</div>
-                    <button onClick={resetGame} style={{ marginTop: '20px', padding: '10px 20px', fontSize: '18px', cursor: 'pointer' }}>
-                        Start New Game
-                    </button>
+                    <div className="game-over-text">GAME OVER</div>
+                    <GameButton 
+                        onClick={resetGame} 
+                        label="Start New Game" 
+                        className="restart-btn"
+                    />
                 </div>
             )}
         </div>
