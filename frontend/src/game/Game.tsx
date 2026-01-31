@@ -244,6 +244,7 @@ const Game: React.FC<GameProps> = ({ onLogout, onShowScoreboard, onOnlineCountCh
                             onShowScoreboard={onShowScoreboard}
                             onStartPairGame={handleStartPairGame}
                             showPairButton={lobbyStats.online_count > 1}
+                            shouldSubmitScore={gameMode === 'single'}
                             score={score}
                             nickname={username}
                         />

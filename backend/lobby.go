@@ -13,7 +13,22 @@ type Client struct {
 	Conn     *websocket.Conn
 	Send     chan []byte
 	Lobby    *Lobby
-	Game     *GameState // Nil if in lobby/waiting
+	mu       sync.RWMutex
+	Game     *GameState // Nil if in lobby/waiting; guarded by mu
+	writeMu  sync.Mutex
+}
+
+func (c *Client) GetGame() *GameState {
+	c.mu.RLock()
+	game := c.Game
+	c.mu.RUnlock()
+	return game
+}
+
+func (c *Client) SetGame(game *GameState) {
+	c.mu.Lock()
+	c.Game = game
+	c.mu.Unlock()
 }
 
 type Lobby struct {
@@ -24,6 +39,12 @@ type Lobby struct {
 	unregister chan *Client
 	broadcast  chan []byte
 	mu         sync.Mutex
+}
+
+func (c *Client) WriteJSON(message interface{}) error {
+	c.writeMu.Lock()
+	defer c.writeMu.Unlock()
+	return c.Conn.WriteJSON(message)
 }
 
 func NewLobby() *Lobby {
@@ -105,105 +126,110 @@ func (l *Lobby) JoinPairQueue(client *Client) {
 		msg := map[string]interface{}{
 			"type": "waiting",
 		}
-        // Use a goroutine to avoid blocking the lock
-        go func() {
-            if err := client.Conn.WriteJSON(msg); err != nil {
-                log.Printf("Error sending wait message: %v", err)
-            }
-        }()
+		// Use a goroutine to avoid blocking the lock
+		go func() {
+			if err := client.WriteJSON(msg); err != nil {
+				log.Printf("Error sending wait message: %v", err)
+			}
+		}()
 	}
 }
 
 func (l *Lobby) StartPairGame(p1, p2 *Client) {
 	log.Printf("Starting pair game for %s and %s", p1.Nickname, p2.Nickname)
-    
-    // Create new game with two players
+
+	// Create new game with two players
 	game := NewGame([]string{p1.Nickname, p2.Nickname})
 	l.games[game] = true
-    
-    p1.Game = game
-    p2.Game = game
+	p1.SetGame(game)
+	p2.SetGame(game)
 
 	// Start game loop
 	go func() {
 		ticker := time.NewTicker(150 * time.Millisecond)
 		defer ticker.Stop()
 
-        // Notify start
-        startMsg := map[string]interface{}{
-            "type": "game_start", 
-            "mode": "pair",
-            "p1": p1.Nickname,
-            "p2": p2.Nickname,
-        }
-        p1.Conn.WriteJSON(startMsg)
-        p2.Conn.WriteJSON(startMsg)
+		// Notify start
+		startMsg := map[string]interface{}{
+			"type": "game_start",
+			"mode": "pair",
+			"p1":   p1.Nickname,
+			"p2":   p2.Nickname,
+		}
+		p1.WriteJSON(startMsg)
+		p2.WriteJSON(startMsg)
 
 		for range ticker.C {
 			game.Update()
 
 			game.mu.RLock()
-            // Check if game is over (both dead)
-            if game.GameOver {
-                 game.mu.RUnlock()
-                 // Send final state
-                 game.mu.RLock()
-                 state := game
-                 game.mu.RUnlock()
-                 
-                 p1.Conn.WriteJSON(state)
-                 p2.Conn.WriteJSON(state)
+			// Check if game is over (both dead)
+			if game.GameOver {
+				game.mu.RUnlock()
+				// Send final state
+				game.mu.RLock()
+				state := game
+				game.mu.RUnlock()
 
-                 // Save Score
-                 SavePairScore(p1.Nickname, p2.Nickname, state.Score)
+				p1.WriteJSON(state)
+				p2.WriteJSON(state)
 
-                 // Clean up references
-                 p1.Game = nil
-                 p2.Game = nil
-                 
-                 l.mu.Lock()
-                 delete(l.games, game)
-                 l.mu.Unlock()
-                 return
-            }
-            
+				// Save Score
+				SavePairScore(p1.Nickname, p2.Nickname, state.Score)
+
+				l.cleanupPairGame(game, p1, p2)
+				return
+			}
 			// Broadcast state to both players
-            // We need to marshal it once
-            // Actually, WriteJSON does marshal.
-            // Let's rely on that for now, minimal optimization needed.
-            
-            // NOTE: We are sending the WHOLE state. P1 and P2 need to know which Pacman they are.
-            // But the client can just check the "Players" map by their nickname.
-            
-			err1 := p1.Conn.WriteJSON(game)
-			err2 := p2.Conn.WriteJSON(game)
-            game.mu.RUnlock()
+			// We need to marshal it once
+			// Actually, WriteJSON does marshal.
+			// Let's rely on that for now, minimal optimization needed.
+
+			// NOTE: We are sending the WHOLE state. P1 and P2 need to know which Pacman they are.
+			// But the client can just check the "Players" map by their nickname.
+
+			err1 := p1.WriteJSON(game)
+			err2 := p2.WriteJSON(game)
+			game.mu.RUnlock()
 
 			if err1 != nil || err2 != nil {
 				log.Println("Error writing to client in pair game, ending game")
-                game.GameOver = true // Stop updates
-                // In a real app we might handle reconnection or pause
-                break
+				game.mu.Lock()
+				game.GameOver = true // Stop updates
+				game.mu.Unlock()
+				l.cleanupPairGame(game, p1, p2)
+				// In a real app we might handle reconnection or pause
+				return
 			}
 		}
 	}()
 }
 
+func (l *Lobby) cleanupPairGame(game *GameState, p1, p2 *Client) {
+	p1.SetGame(nil)
+	p2.SetGame(nil)
+
+	l.mu.Lock()
+	delete(l.games, game)
+	l.mu.Unlock()
+}
+
 func (l *Lobby) BroadcastPlayerCount() {
-    // This is just a helper to let clients know how many people are online
-    // to show/hide the "Pair Mode" button ideally
-    count := len(l.clients)
-    if count < 2 {
-        // If 0 or 1, no pair mode possible really (unless waiting for someone)
-    }
-    msg := map[string]interface{}{
-        "type": "lobby_stats",
-        "online_count": count,
-    }
-    
-    l.mu.Lock()
-    defer l.mu.Unlock()
-    for client := range l.clients {
-         client.Conn.WriteJSON(msg)
-    }
+	// This is just a helper to let clients know how many people are online
+	// to show/hide the "Pair Mode" button ideally
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
+	count := len(l.clients)
+	if count < 2 {
+		// If 0 or 1, no pair mode possible really (unless waiting for someone)
+	}
+	msg := map[string]interface{}{
+		"type":         "lobby_stats",
+		"online_count": count,
+	}
+
+	for client := range l.clients {
+		client.WriteJSON(msg)
+	}
 }
