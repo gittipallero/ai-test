@@ -1,20 +1,16 @@
 import { useEffect, useState } from 'react'
 import Game from './game/Game'
 import AuthForm from './components/AuthForm'
+import ScoreBoard from './components/ScoreBoard'
 import './App.css'
 
 const USERNAME_STORAGE_KEY = 'pacman.username'
 
+type ViewState = 'game' | 'scoreboard'
+
 function App() {
   const [username, setUsername] = useState<string | null>(null)
-
-  // Fetch high score or initial state from backend
-  useEffect(() => {
-    fetch('/api/score')
-      .then(res => res.json())
-      .then(data => console.log("High Score from backend:", data.highScore))
-      .catch(err => console.error(err))
-  }, [])
+  const [currentView, setCurrentView] = useState<ViewState>('game')
 
   useEffect(() => {
     const stored = sessionStorage.getItem(USERNAME_STORAGE_KEY)
@@ -32,6 +28,15 @@ function App() {
   const handleLogout = () => {
     sessionStorage.removeItem(USERNAME_STORAGE_KEY)
     setUsername(null)
+    setCurrentView('game')
+  }
+
+  const handleShowScoreboard = () => {
+    setCurrentView('scoreboard')
+  }
+
+  const handleBackToGame = () => {
+    setCurrentView('game')
   }
 
   return (
@@ -43,10 +48,16 @@ function App() {
       </header>
       <main>
         <div className="game-container">
-          {username ? (
-            <Game onLogout={handleLogout} />
-          ) : (
+          {!username ? (
             <AuthForm onLoginSuccess={handleLoginSuccess} />
+          ) : currentView === 'scoreboard' ? (
+            <ScoreBoard onBack={handleBackToGame} />
+          ) : (
+            <Game 
+              onLogout={handleLogout}
+              onShowScoreboard={handleShowScoreboard}
+              username={username}
+            />
           )}
         </div>
       </main>
@@ -59,3 +70,4 @@ function App() {
 }
 
 export default App
+

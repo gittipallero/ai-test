@@ -23,6 +23,12 @@
     animation: pulse-text 1s infinite alternate;
 }
 
+.final-score {
+    font-size: 1.5rem;
+    color: var(--c64-fg);
+    margin-bottom: 0.5rem;
+}
+
 @keyframes pulse-text {
     from { transform: scale(1); }
     to { transform: scale(1.1); }
