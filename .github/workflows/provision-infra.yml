@@ -1,0 +1,95 @@
+name: Provision Infrastructure
+
+on:
+  workflow_call:
+    inputs:
+      resource_group:
+        required: true
+        type: string
+      location:
+        required: true
+        type: string
+      deployment_name:
+        required: true
+        type: string
+      postgres_location:
+        required: true
+        type: string
+    secrets:
+      AZURE_CLIENT_ID:
+        required: true
+      AZURE_CLIENT_SECRET:
+        required: true
+      AZURE_SUBSCRIPTION_ID:
+        required: true
+      AZURE_TENANT_ID:
+        required: true
+      POSTGRES_ADMIN_PASSWORD:
+        required: true
+    outputs:
+      acr_login_server:
+        description: "The login server for the Azure Container Registry"
+        value: ${{ jobs.provision.outputs.acr_login_server }}
+      acr_name:
+        description: "The name of the Azure Container Registry"
+        value: ${{ jobs.provision.outputs.acr_name }}
+      webapp_name:
+        description: "The name of the Web App"
+        value: ${{ jobs.provision.outputs.webapp_name }}
+      webapp_url:
+        description: "The URL of the Web App"
+        value: ${{ jobs.provision.outputs.webapp_url }}
+
+jobs:
+  provision:
+    runs-on: ubuntu-latest
+    outputs:
+      acr_login_server: ${{ steps.deploy_outputs.outputs.acr_login_server }}
+      acr_name: ${{ steps.deploy_outputs.outputs.acr_name }}
+      webapp_name: ${{ steps.deploy_outputs.outputs.webapp_name }}
+      webapp_url: ${{ steps.deploy_outputs.outputs.webapp_url }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Login to Azure
+        uses: azure/login@v2
+        with:
+          creds: |
+            {
+              "clientId": "${{ secrets.AZURE_CLIENT_ID }}",
+              "clientSecret": "${{ secrets.AZURE_CLIENT_SECRET }}",
+              "subscriptionId": "${{ secrets.AZURE_SUBSCRIPTION_ID }}",
+              "tenantId": "${{ secrets.AZURE_TENANT_ID }}"
+            }
+
+      - name: Create Resource Group
+        run: |
+          az group create --name ${{ inputs.resource_group }} --location ${{ inputs.location }}
+
+      - name: Deploy Infrastructure
+        uses: azure/arm-deploy@v2
+        id: deploy
+        with:
+          resourceGroupName: ${{ inputs.resource_group }}
+          template: ./infra/main.bicep
+          deploymentName: ${{ inputs.deployment_name }}
+          # Incremental is the default mode for arm-deploy, ensuring reusing checking existing resources
+          mode: Incremental 
+          parameters: postgresAdminPassword=${{ secrets.POSTGRES_ADMIN_PASSWORD }} postgresLocation=${{ inputs.postgres_location }}
+
+      - name: Derive Deployment Outputs
+        id: deploy_outputs
+        run: |
+          ACR_LOGIN_SERVER="${{ steps.deploy.outputs.acrLoginServer }}"
+          echo "acr_login_server=$ACR_LOGIN_SERVER" >> "$GITHUB_OUTPUT"
+          
+          ACR_NAME=$(echo "$ACR_LOGIN_SERVER" | cut -d. -f1)
+          echo "acr_name=$ACR_NAME" >> "$GITHUB_OUTPUT"
+          
+          WEB_APP_URL="${{ steps.deploy.outputs.webAppUrl }}"
+          WEB_APP_NAME=$(echo "$WEB_APP_URL" | awk -F/ '{print $3}' | awk -F. '{print $1}')
+          
+          echo "webapp_name=$WEB_APP_NAME" >> "$GITHUB_OUTPUT"
+          echo "webapp_url=$WEB_APP_URL" >> "$GITHUB_OUTPUT"

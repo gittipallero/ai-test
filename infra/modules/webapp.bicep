@@ -32,6 +32,7 @@ resource webApp 'Microsoft.Web/sites@2022-09-01' = {
   name: appName
   location: location
   properties: {
+    httpsOnly: true
     serverFarmId: appServicePlan.id
     siteConfig: {
       linuxFxVersion: 'DOCKER|${acrLoginServer}/${dockerImageName}:${dockerImageTag}'
