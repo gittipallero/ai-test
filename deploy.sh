@@ -3,7 +3,7 @@ set -e
 
 # Variables
 RESOURCE_GROUP="rg-pacman-dev"
-LOCATION="westeurope"
+LOCATION="swedencentral"
 DEPLOYMENT_NAME="pacman-deployment"
 
 # Login to Azure if not logged in (uncomment if needed, but assuming user is logged in or will use 'az login')
