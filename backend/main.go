@@ -27,6 +27,16 @@ type AuthRequest struct {
 	Password string `json:"password"`
 }
 
+type ScoreSubmitRequest struct {
+	Nickname string `json:"nickname"`
+	Score    int    `json:"score"`
+}
+
+type ScoreEntry struct {
+	Nickname string `json:"nickname"`
+	Score    int    `json:"score"`
+}
+
 var db *sql.DB
 
 func requireDB(w http.ResponseWriter) bool {
@@ -69,14 +79,28 @@ func initDB() {
 		return
 	}
 
-	createTableSQL := `CREATE TABLE IF NOT EXISTS users (
+	createUsersTableSQL := `CREATE TABLE IF NOT EXISTS users (
 		id SERIAL PRIMARY KEY,
 		nickname TEXT UNIQUE NOT NULL,
 		password_hash TEXT NOT NULL
 	);`
-	_, err = db.Exec(createTableSQL)
+	_, err = db.Exec(createUsersTableSQL)
 	if err != nil {
-		fmt.Printf("Error creating table: %v\n", err)
+		fmt.Printf("Error creating users table: %v\n", err)
+		_ = db.Close()
+		db = nil
+		return
+	}
+
+	createScoresTableSQL := `CREATE TABLE IF NOT EXISTS scores (
+		id SERIAL PRIMARY KEY,
+		nickname TEXT UNIQUE NOT NULL,
+		score INT NOT NULL,
+		updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+	);`
+	_, err = db.Exec(createScoresTableSQL)
+	if err != nil {
+		fmt.Printf("Error creating scores table: %v\n", err)
 		_ = db.Close()
 		db = nil
 		return
@@ -98,8 +122,69 @@ func main() {
 	mux.Handle("/", fs)
 
 	mux.HandleFunc("/api/score", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		if !requireDB(w) {
+			return
+		}
+
+		var req ScoreSubmitRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "Invalid request body", http.StatusBadRequest)
+			return
+		}
+
+		// Upsert: insert if not exists, update only if new score is higher
+		upsertSQL := `
+			INSERT INTO scores (nickname, score, updated_at)
+			VALUES ($1, $2, CURRENT_TIMESTAMP)
+			ON CONFLICT (nickname)
+			DO UPDATE SET score = EXCLUDED.score, updated_at = CURRENT_TIMESTAMP
+			WHERE scores.score < EXCLUDED.score
+		`
+		_, err := db.Exec(upsertSQL, req.Nickname, req.Score)
+		if err != nil {
+			fmt.Println("Score update error:", err)
+			http.Error(w, "Database error", http.StatusInternalServerError)
+			return
+		}
+
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(ScoreResponse{HighScore: 1000})
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(map[string]string{"message": "Score submitted"})
+	})
+
+	mux.HandleFunc("/api/scoreboard", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		if !requireDB(w) {
+			return
+		}
+
+		rows, err := db.Query("SELECT nickname, score FROM scores ORDER BY score DESC LIMIT 10")
+		if err != nil {
+			fmt.Println("Scoreboard query error:", err)
+			http.Error(w, "Database error", http.StatusInternalServerError)
+			return
+		}
+		defer rows.Close()
+
+		var scores []ScoreEntry
+		for rows.Next() {
+			var entry ScoreEntry
+			if err := rows.Scan(&entry.Nickname, &entry.Score); err != nil {
+				fmt.Println("Row scan error:", err)
+				continue
+			}
+			scores = append(scores, entry)
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(scores)
 	})
 
 	mux.HandleFunc("/api/signup", func(w http.ResponseWriter, r *http.Request) {

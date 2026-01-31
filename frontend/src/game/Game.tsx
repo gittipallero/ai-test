@@ -6,9 +6,11 @@ import './Game.css';
 
 interface GameProps {
     onLogout: () => void;
+    onShowScoreboard: () => void;
+    username: string;
 }
 
-const Game: React.FC<GameProps> = ({ onLogout }) => {
+const Game: React.FC<GameProps> = ({ onLogout, onShowScoreboard, username }) => {
     // Deep copy map to handle state (eating dots)
     const [grid, setGrid] = useState<number[][]>(INITIAL_MAP.map(row => [...row]));
     const [pacman, setPacman] = useState<Position>(INITIAL_PACMAN);
@@ -202,7 +204,13 @@ const Game: React.FC<GameProps> = ({ onLogout }) => {
             ))}
             <div className="score-display">SCORE: {score}</div>
             {gameOver && (
-                <GameOverDialog onRestart={resetGame} onLogout={onLogout} />
+                <GameOverDialog 
+                    onRestart={resetGame} 
+                    onLogout={onLogout}
+                    onShowScoreboard={onShowScoreboard}
+                    score={score}
+                    nickname={username}
+                />
             )}
         </div>
     );
