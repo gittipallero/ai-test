@@ -7,10 +7,18 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"time"
 
+	"github.com/gorilla/websocket"
 	_ "github.com/lib/pq"
 	"golang.org/x/crypto/bcrypt"
 )
+
+var upgrader = websocket.Upgrader{
+	CheckOrigin: func(r *http.Request) bool {
+		return true // Allow all origins for simplicity in this demo
+	},
+}
 
 type User struct {
 	ID           int    `json:"id"`
@@ -116,6 +124,86 @@ func main() {
 
 	fs := http.FileServer(http.Dir(filepath.Join(rootDir, "frontend/dist")))
 	mux.Handle("/", fs)
+
+	mux.HandleFunc("/api/ws", func(w http.ResponseWriter, r *http.Request) {
+		conn, err := upgrader.Upgrade(w, r, nil)
+		if err != nil {
+			fmt.Println("Upgrade error:", err)
+			return
+		}
+		defer conn.Close()
+
+		nickname := r.URL.Query().Get("nickname")
+		if nickname == "" {
+			nickname = "Anonymous"
+		}
+
+		game := NewGame()
+		
+		// Handle Input
+		go func() {
+			for {
+				var msg map[string]string
+				if err := conn.ReadJSON(&msg); err != nil {
+					return
+				}
+				if dir, ok := msg["direction"]; ok {
+					game.SetNextDirection(Direction(dir))
+				}
+			}
+		}()
+
+		// Game Loop
+		ticker := time.NewTicker(150 * time.Millisecond)
+		defer ticker.Stop()
+
+		for range ticker.C {
+			game.Update()
+
+			game.mu.RLock()
+			gameOver := game.GameOver
+			score := game.Score
+			// Create a clean state object to send
+			// We can just send the game object since fields are exported and tagged
+			// But we must marshal inside lock to prevent race on slices
+			bytes, err := json.Marshal(game)
+			game.mu.RUnlock()
+
+			if err != nil {
+				fmt.Println("Marshal error:", err)
+				break 
+			}
+
+			if err := conn.WriteMessage(websocket.TextMessage, bytes); err != nil {
+				break
+			}
+
+			if gameOver {
+				// Save score
+				if db != nil {
+					// reusing the same upsert logic
+					upsertSQL := `
+						INSERT INTO scores (nickname, score, updated_at)
+						VALUES ($1, $2, CURRENT_TIMESTAMP)
+						ON CONFLICT (nickname)
+						DO UPDATE SET score = EXCLUDED.score, updated_at = CURRENT_TIMESTAMP
+						WHERE scores.score < EXCLUDED.score
+					`
+					_, err := db.Exec(upsertSQL, nickname, score)
+					if err != nil {
+						fmt.Println("Failed to save score:", err)
+					} else {
+						fmt.Println("Score saved for", nickname, ":", score)
+					}
+				}
+				// Give meaningful time for client to receive GameOver state before closing
+				time.Sleep(500 * time.Millisecond) 
+				// We don't break immediately, let the client disconnect or just stop sending updates?
+				// Actually, we should probably stop the loop.
+				break
+			}
+		}
+	})
 
 	mux.HandleFunc("/api/score", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
