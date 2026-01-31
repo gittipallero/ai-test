@@ -13,7 +13,21 @@ type Client struct {
 	Conn     *websocket.Conn
 	Send     chan []byte
 	Lobby    *Lobby
-	Game     *GameState // Nil if in lobby/waiting
+	mu       sync.RWMutex
+	Game     *GameState // Nil if in lobby/waiting; guarded by mu
+}
+
+func (c *Client) GetGame() *GameState {
+	c.mu.RLock()
+	game := c.Game
+	c.mu.RUnlock()
+	return game
+}
+
+func (c *Client) SetGame(game *GameState) {
+	c.mu.Lock()
+	c.Game = game
+	c.mu.Unlock()
 }
 
 type Lobby struct {
@@ -120,9 +134,8 @@ func (l *Lobby) StartPairGame(p1, p2 *Client) {
 	// Create new game with two players
 	game := NewGame([]string{p1.Nickname, p2.Nickname})
 	l.games[game] = true
-
-	p1.Game = game
-	p2.Game = game
+	p1.SetGame(game)
+	p2.SetGame(game)
 
 	// Start game loop
 	go func() {
@@ -160,7 +173,6 @@ func (l *Lobby) StartPairGame(p1, p2 *Client) {
 				l.cleanupPairGame(game, p1, p2)
 				return
 			}
-
 			// Broadcast state to both players
 			// We need to marshal it once
 			// Actually, WriteJSON does marshal.
@@ -187,8 +199,8 @@ func (l *Lobby) StartPairGame(p1, p2 *Client) {
 }
 
 func (l *Lobby) cleanupPairGame(game *GameState, p1, p2 *Client) {
-	p1.Game = nil
-	p2.Game = nil
+	p1.SetGame(nil)
+	p2.SetGame(nil)
 
 	l.mu.Lock()
 	delete(l.games, game)

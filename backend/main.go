@@ -221,12 +221,13 @@ func main() {
 }
 
 func handleGameInput(client *Client, msg map[string]interface{}) {
-    if client.Game == nil {
+    game := client.GetGame()
+    if game == nil {
         return
     }
     // Expected: { "direction": "UP/DOWN..." }
     if dirVal, ok := msg["direction"].(string); ok {
-        client.Game.SetNextDirection(client.Nickname, Direction(dirVal))
+        game.SetNextDirection(client.Nickname, Direction(dirVal))
     }
 }
 
@@ -238,7 +239,7 @@ func startSinglePlayerGame(client *Client) {
     // Let's assume start_single starts a new one.
     
     game := NewGame([]string{client.Nickname})
-    client.Game = game
+    client.SetGame(game)
     
     // Start Ticker Loop for this single player game
     go func() {
@@ -256,7 +257,7 @@ func startSinglePlayerGame(client *Client) {
 		for range ticker.C {
             // Check if client disconnected (handled by lobby unregister closing channel?)
             // We can check if client.Game is still this game
-            if client.Game != game {
+            if client.GetGame() != game {
                 return 
             }
             
@@ -280,7 +281,7 @@ func startSinglePlayerGame(client *Client) {
 				}
 				// Sleep a bit and stop
 				time.Sleep(500 * time.Millisecond)
-                client.Game = nil
+                client.SetGame(nil)
 				break
 			}
 		}
