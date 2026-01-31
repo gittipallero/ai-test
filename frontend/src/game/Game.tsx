@@ -57,18 +57,27 @@ const Game: React.FC<GameProps> = ({ onLogout, onShowScoreboard, username }) => 
 
         socket.onclose = () => {
             console.log('Disconnected from game server');
+            if (ws.current === socket) {
+                ws.current = null;
+            }
         };
 
         ws.current = socket;
 
         return () => {
+            if (ws.current === socket) {
+                ws.current = null;
+            }
             socket.close();
         };
     }, [username, gameId]);
 
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
-            if (gameState.gameOver || !ws.current) return;
+            const currentSocket = ws.current;
+            if (gameState.gameOver || !currentSocket || currentSocket.readyState !== WebSocket.OPEN) {
+                return;
+            }
             let dir: Direction = null;
             switch(e.key) {
                 case 'ArrowUp': dir = 'UP'; break;
@@ -77,7 +86,7 @@ const Game: React.FC<GameProps> = ({ onLogout, onShowScoreboard, username }) => 
                 case 'ArrowRight': dir = 'RIGHT'; break;
             }
             if (dir) {
-                ws.current.send(JSON.stringify({ direction: dir }));
+                currentSocket.send(JSON.stringify({ direction: dir }));
             }
         };
         window.addEventListener('keydown', handleKeyDown);
