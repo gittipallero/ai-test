@@ -47,3 +47,16 @@ button:hover {
   background-color: var(--c64-fg);
   color: var(--c64-bg);
 }
+
+@media (max-width: 600px) {
+  body {
+    font-size: 16px;
+  }
+  
+  #root {
+    padding: 0.5rem;
+    border-width: 2px;
+  }
+  
+  /* :root override removed */
+}

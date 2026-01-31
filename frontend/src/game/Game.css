@@ -116,3 +116,22 @@
     text-shadow: 1px 1px 0 #000;
     pointer-events: none;
 }
+
+.game-board-container {
+    display: flex;
+    justify-content: center;
+    position: relative;
+    z-index: 1;
+}
+
+@media (max-width: 600px) {
+    .game-header {
+        font-size: 0.8em;
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .score-display {
+        font-size: 20px;
+    }
+}

@@ -1,0 +1,70 @@
+.touch-controls {
+    display: none; /* Hidden by default on desktop */
+    margin-top: 20px;
+    user-select: none;
+    touch-action: none;
+    padding-bottom: 20px;
+}
+
+.d-pad {
+    display: grid;
+    grid-template-columns: 60px 60px 60px;
+    grid-template-rows: 60px 60px 60px;
+    gap: 5px;
+    justify-content: center;
+    align-items: center;
+}
+
+.d-btn {
+    background-color: rgba(64, 49, 141, 0.8);
+    border: 2px solid var(--c64-border);
+    color: var(--c64-text);
+    font-size: 24px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 60px;
+    height: 60px;
+    border-radius: 8px;
+    cursor: pointer;
+    touch-action: manipulation;
+}
+
+.d-btn:active {
+    background-color: var(--c64-fg);
+    color: var(--c64-bg);
+}
+
+.d-btn.up {
+    grid-column: 2;
+    grid-row: 1;
+}
+
+.d-btn.left {
+    grid-column: 1;
+    grid-row: 2;
+}
+
+.d-btn.right {
+    grid-column: 3;
+    grid-row: 2;
+}
+
+.d-btn.down {
+    grid-column: 2;
+    grid-row: 3;
+}
+
+.d-center {
+    grid-column: 2;
+    grid-row: 2;
+    width: 100%;
+    height: 100%;
+}
+
+/* Show on screens smaller than 768px (typical tablet/mobile cutoff) */
+@media (max-width: 768px) {
+    .touch-controls {
+        display: block;
+    }
+}
