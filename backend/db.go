@@ -87,7 +87,8 @@ func InitDB() {
 		player1 TEXT NOT NULL,
 		player2 TEXT NOT NULL,
 		score INT NOT NULL,
-		updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+		updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		UNIQUE(player1, player2)
 	);`
 
 	_, err = db.Exec(createPairScoresTableV2)
@@ -120,18 +121,20 @@ func SavePairScore(player1, player2 string, score int) error {
 		return fmt.Errorf("database not initialized")
 	}
 
-    // Ensure alphabetical order for consistency in scoreboard
-    if player1 > player2 {
-        player1, player2 = player2, player1
-    }
+	// Ensure alphabetical order for consistency in scoreboard
+	if player1 > player2 {
+		player1, player2 = player2, player1
+	}
 
-    // We just insert every game score for now, as decided in plan comments (simulated)
-    // Actually, let's just insert.
-	insertSQL := `
+	// Upsert: only store the best score for each pair
+	upsertSQL := `
 		INSERT INTO pair_scores (player1, player2, score, updated_at)
 		VALUES ($1, $2, $3, CURRENT_TIMESTAMP)
+		ON CONFLICT (player1, player2)
+		DO UPDATE SET score = EXCLUDED.score, updated_at = CURRENT_TIMESTAMP
+		WHERE pair_scores.score < EXCLUDED.score
 	`
-	_, err := db.Exec(insertSQL, player1, player2, score)
+	_, err := db.Exec(upsertSQL, player1, player2, score)
 	return err
 }
 
