@@ -58,8 +58,6 @@ jobs:
 
       - name: Create Resource Group
         run: |
-      - name: Create Resource Group
-        run: |
           az group create --name ${{ vars.AZURE_RESOURCE_GROUP }} --location ${{ vars.AZURE_LOCATION || 'swedencentral' }}
 
       - name: Deploy Infrastructure
