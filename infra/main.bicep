@@ -1,4 +1,6 @@
 param location string = resourceGroup().location
+@description('Location for PostgreSQL. Defaults to eastus due to availability restrictions in some regions.')
+param postgresLocation string = 'eastus'
 param applicationName string = 'pacman-app'
 param environment string = 'dev'
 @secure()
@@ -25,7 +27,7 @@ module acrModule 'modules/acr.bicep' = {
 module postgresModule 'modules/postgres.bicep' = {
   name: 'postgresDeploy'
   params: {
-    location: location
+    location: postgresLocation
     serverName: postgresServerName
     adminPassword: postgresAdminPassword
   }

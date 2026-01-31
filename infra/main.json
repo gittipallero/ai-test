@@ -13,6 +13,13 @@
       "type": "string",
       "defaultValue": "[resourceGroup().location]"
     },
+    "postgresLocation": {
+      "type": "string",
+      "defaultValue": "eastus",
+      "metadata": {
+        "description": "Location for PostgreSQL. Defaults to eastus due to availability restrictions in some regions."
+      }
+    },
     "applicationName": {
       "type": "string",
       "defaultValue": "pacman-app"
@@ -112,7 +119,7 @@
         "mode": "Incremental",
         "parameters": {
           "location": {
-            "value": "[parameters('location')]"
+            "value": "[parameters('postgresLocation')]"
           },
           "serverName": {
             "value": "[variables('postgresServerName')]"
