@@ -70,6 +70,7 @@ const Game: React.FC<GameProps> = ({ onLogout, onShowScoreboard, onOnlineCountCh
                 } else if (msg.type === 'game_start') {
                     setWaiting(false);
                     setGameMode(msg.mode);
+                    setLocalDirection(null);
                 } else if (msg.grid) {
                     setGameState(msg);
                 }
