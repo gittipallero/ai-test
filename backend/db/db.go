@@ -1,4 +1,4 @@
-package main
+package db
 
 import (
 	"database/sql"
@@ -14,6 +14,19 @@ import (
 var db *sql.DB
 
 var ErrUsernameTaken = errors.New("username already taken")
+
+// ScoreEntry represents a row in the scoreboard
+type ScoreEntry struct {
+	Nickname string `json:"nickname"`
+	Score    int    `json:"score"`
+}
+
+// PairScoreEntry represents a row in the pair scoreboard
+type PairScoreEntry struct {
+	Player1 string `json:"player1"`
+	Player2 string `json:"player2"`
+	Score   int    `json:"score"`
+}
 
 func RequireDB(w http.ResponseWriter) bool {
 	if db == nil {
@@ -31,26 +44,8 @@ func InitDB() {
 		return
 	}
 
-	if err = createUsersTable(); err != nil {
-		fmt.Printf("Error creating users table: %v\n", err)
-		closeDB()
-		return
-	}
-
-	if err = createScoresTable(); err != nil {
-		fmt.Printf("Error creating scores table: %v\n", err)
-		closeDB()
-		return
-	}
-
-	if err = createPairScoresTable(); err != nil {
-		fmt.Printf("Error creating pair_scores table: %v\n", err)
-		closeDB()
-		return
-	}
-
-	if err = migratePairScores(); err != nil {
-		fmt.Printf("Error migrating pair_scores table: %v\n", err)
+	if err = RunMigrations(db); err != nil {
+		fmt.Printf("Error running migrations: %v\n", err)
 		closeDB()
 		return
 	}
@@ -94,95 +89,24 @@ func connectDB() error {
 	return nil
 }
 
-func createUsersTable() error {
-	createUsersTableSQL := `CREATE TABLE IF NOT EXISTS users (
-		id SERIAL PRIMARY KEY,
-		nickname TEXT UNIQUE NOT NULL,
-		password_hash TEXT NOT NULL
-	);`
-	_, err := db.Exec(createUsersTableSQL)
-	return err
-}
-
-func createScoresTable() error {
-	createScoresTableSQL := `CREATE TABLE IF NOT EXISTS scores (
-		id SERIAL PRIMARY KEY,
-		nickname TEXT UNIQUE NOT NULL,
-		score INT NOT NULL,
-		updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-	);`
-	_, err := db.Exec(createScoresTableSQL)
-	return err
-}
-
-func createPairScoresTable() error {
-	createPairScoresTableV2 := `CREATE TABLE IF NOT EXISTS pair_scores (
-		id SERIAL PRIMARY KEY,
-		player1 TEXT NOT NULL,
-		player2 TEXT NOT NULL,
-		score INT NOT NULL,
-		updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-		UNIQUE(player1, player2)
-	);`
-
-	_, err := db.Exec(createPairScoresTableV2)
-	return err
-}
-
-func migratePairScores() error {
-	// Migration for existing tables: ensure unique constraint exists for (player1, player2).
-	// The ON CONFLICT clause in SavePairScore requires this constraint.
-	// First, check if the unique index already exists to avoid unnecessary work.
-	var indexExists bool
-	err := db.QueryRow(`
-		SELECT EXISTS (
-			SELECT 1 FROM pg_indexes 
-			WHERE tablename = 'pair_scores' 
-			AND indexname = 'pair_scores_player1_player2_key'
-		)`).Scan(&indexExists)
-	if err != nil {
-		return fmt.Errorf("checking for existing index: %w", err)
-	}
-
-	if !indexExists {
-		// Before creating the unique index, consolidate any duplicate (player1, player2) entries
-		// by keeping only the row with the highest score for each pair.
-		// This handles existing databases that may have duplicate entries from before this constraint.
-		consolidateDuplicatesSQL := `
-			DELETE FROM pair_scores p1
-			USING pair_scores p2
-			WHERE p1.player1 = p2.player1 
-			  AND p1.player2 = p2.player2 
-			  AND (p1.score < p2.score OR (p1.score = p2.score AND p1.id > p2.id))
-		`
-		_, err = db.Exec(consolidateDuplicatesSQL)
-		if err != nil {
-			return fmt.Errorf("consolidating duplicate pair_scores: %w", err)
-		}
-
-		// Now create the unique index - this will succeed since duplicates have been removed
-		addPairScoresUniqueConstraint := `CREATE UNIQUE INDEX IF NOT EXISTS pair_scores_player1_player2_key ON pair_scores (player1, player2);`
-		_, err = db.Exec(addPairScoresUniqueConstraint)
-		if err != nil {
-			return fmt.Errorf("adding unique constraint to pair_scores: %w", err)
-		}
-		fmt.Println("Migrated pair_scores table: consolidated duplicates and added unique constraint")
-	}
-	return nil
-}
-
-func SaveScore(nickname string, score int) error {
+func SaveScore(nickname string, score int, ghostCount int) error {
 	if db == nil {
 		return fmt.Errorf("database not initialized")
 	}
+	
+	// Default to 4 ghosts if not specified (legacy logic safety, though new callers should pass it)
+	if ghostCount <= 0 {
+		ghostCount = 4
+	}
+
 	upsertSQL := `
-		INSERT INTO scores (nickname, score, updated_at)
-		VALUES ($1, $2, CURRENT_TIMESTAMP)
-		ON CONFLICT (nickname)
+		INSERT INTO scores (nickname, score, ghost_count, updated_at)
+		VALUES ($1, $2, $3, CURRENT_TIMESTAMP)
+		ON CONFLICT (nickname, ghost_count)
 		DO UPDATE SET score = EXCLUDED.score, updated_at = CURRENT_TIMESTAMP
 		WHERE scores.score < EXCLUDED.score
 	`
-	_, err := db.Exec(upsertSQL, nickname, score)
+	_, err := db.Exec(upsertSQL, nickname, score, ghostCount)
 	return err
 }
 
@@ -208,11 +132,16 @@ func SavePairScore(player1, player2 string, score int) error {
 	return err
 }
 
-func GetTopScores() ([]ScoreEntry, error) {
+func GetTopScores(ghostCount int) ([]ScoreEntry, error) {
 	if db == nil {
 		return nil, fmt.Errorf("database not initialized")
 	}
-	rows, err := db.Query("SELECT nickname, score FROM scores ORDER BY score DESC LIMIT 10")
+	
+	if ghostCount <= 0 {
+		ghostCount = 4
+	}
+
+	rows, err := db.Query("SELECT nickname, score FROM scores WHERE ghost_count = $1 ORDER BY score DESC LIMIT 10", ghostCount)
 	if err != nil {
 		return nil, err
 	}

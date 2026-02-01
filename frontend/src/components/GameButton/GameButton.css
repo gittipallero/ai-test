@@ -3,7 +3,7 @@
     color: var(--c64-fg);
     border: 2px solid var(--c64-fg);
     padding: 10px 20px;
-    font-family: 'Press Start 2P', monospace; /* Assuming retro font or similar available */
+    font-family: var(--font-c64);
     font-size: 14px;
     cursor: pointer;
     text-transform: uppercase;

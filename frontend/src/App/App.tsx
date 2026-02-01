@@ -18,8 +18,10 @@ function App() {
   const [authToken, setAuthToken] = useState<string | null>(() => {
     return sessionStorage.getItem(TOKEN_STORAGE_KEY)
   })
+  
   const [currentView, setCurrentView] = useState<ViewState>('game')
   const [onlineCount, setOnlineCount] = useState<number>(0)
+  const [ghostCount, setGhostCount] = useState<number>(4)
 
   const handleLoginSuccess = (nickname: string, token: string) => {
     sessionStorage.setItem(USERNAME_STORAGE_KEY, nickname)
@@ -37,7 +39,10 @@ function App() {
     setOnlineCount(0)
   }
 
-  const handleShowScoreboard = () => {
+  const handleShowScoreboard = (count?: number) => {
+    if (count) {
+      setGhostCount(count)
+    }
     setCurrentView('scoreboard')
   }
 
@@ -60,7 +65,7 @@ function App() {
           {!isAuthenticated ? (
             <AuthForm onLoginSuccess={handleLoginSuccess} />
           ) : currentView === 'scoreboard' ? (
-            <ScoreBoard onBack={handleBackToGame} />
+            <ScoreBoard onBack={handleBackToGame} initialGhostCount={ghostCount} />
           ) : (
             <Game 
               onLogout={handleLogout}
@@ -68,6 +73,8 @@ function App() {
               onOnlineCountChange={setOnlineCount}
               username={username}
               authToken={authToken}
+              ghostCount={ghostCount}
+              onGhostCountChange={setGhostCount}
             />
           )}
         </div>
@@ -81,4 +88,3 @@ function App() {
 }
 
 export default App
-

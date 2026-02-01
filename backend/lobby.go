@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/villepalo/pacman-go-react/db"
 )
 
 type Client struct {
@@ -121,8 +122,8 @@ func (l *Lobby) JoinPairQueue(client *Client) {
 func (l *Lobby) StartPairGame(p1, p2 *Client) {
 	log.Printf("Starting pair game for %s and %s", p1.Nickname, p2.Nickname)
 
-	// Create new game with two players
-	game := NewGame([]string{p1.Nickname, p2.Nickname})
+	// Create new game with two players, default ghosts 4
+	game := NewGame([]string{p1.Nickname, p2.Nickname}, 4)
 	l.games[game] = true
 	p1.SetGame(game)
 	p2.SetGame(game)
@@ -192,7 +193,7 @@ func (l *Lobby) handleGameOver(game *GameState, p1, p2 *Client) {
 	l.broadcastToPair(p1, p2, state)
 
 	// Save Score
-	SavePairScore(p1.Nickname, p2.Nickname, state.Score)
+	db.SavePairScore(p1.Nickname, p2.Nickname, state.Score)
 
 	l.cleanupPairGame(game, p1, p2)
 }

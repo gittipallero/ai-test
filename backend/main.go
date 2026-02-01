@@ -1,6 +1,8 @@
 package main
 
 import (
+	"github.com/villepalo/pacman-go-react/db"
+
 	"fmt"
 	"net/http"
 	"os"
@@ -8,7 +10,7 @@ import (
 )
 
 func main() {
-	InitDB()
+	db.InitDB()
 	CleanupExpiredSessions() // Start session cleanup goroutine
 	mux := http.NewServeMux()
 

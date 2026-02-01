@@ -5,8 +5,8 @@ import (
 )
 
 func TestGhostPlayerSwapCollision(t *testing.T) {
-	// Initialize game with one player
-	game := NewGame([]string{"tester"})
+	// Initialize game with one player, 4 ghosts
+	game := NewGame([]string{"tester"}, 4)
 	p := game.Players["tester"]
 
 	// Set positions: Player at (1, 1), Ghost at (1, 2)
@@ -39,8 +39,8 @@ func TestGhostPlayerSwapCollision(t *testing.T) {
 }
 
 func TestDirectCollision(t *testing.T) {
-	// Initialize game with one player
-	game := NewGame([]string{"tester"})
+	// Initialize game with one player, 4 ghosts
+	game := NewGame([]string{"tester"}, 4)
 	p := game.Players["tester"]
 
 	// Set positions: Player at (1, 1), Ghost at (1, 1)

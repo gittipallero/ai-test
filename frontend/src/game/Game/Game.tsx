@@ -3,19 +3,22 @@ import { COLS, BLOCK_SIZE } from '../constants';
 import type { Direction, GameMode, GameState, LobbyStats } from '../constants';
 import GameBoard from '../GameBoard';
 import GameOverDialog from '../../components/GameOverDialog/GameOverDialog';
+import Slider from '../../components/Slider/Slider';
 import TouchControls from '../../components/TouchControls/TouchControls';
 
 import './Game.css';
 
 interface GameProps {
     onLogout: () => void;
-    onShowScoreboard: () => void;
+    onShowScoreboard: (ghostCount?: number) => void;
     onOnlineCountChange: (count: number) => void;
     username: string;
     authToken: string;
+    ghostCount: number;
+    onGhostCountChange: (count: number) => void;
 }
 
-const Game: React.FC<GameProps> = ({ onLogout, onShowScoreboard, onOnlineCountChange, username, authToken }) => {
+const Game: React.FC<GameProps> = ({ onLogout, onShowScoreboard, onOnlineCountChange, username, authToken, ghostCount, onGhostCountChange }) => {
     const [gameState, setGameState] = useState<GameState | null>(null);
     const [waiting, setWaiting] = useState(false);
     const [lobbyStats, setLobbyStats] = useState<LobbyStats>({ online_count: 0 });
@@ -51,7 +54,8 @@ const Game: React.FC<GameProps> = ({ onLogout, onShowScoreboard, onOnlineCountCh
         
         socket.onopen = () => {
             console.log('Connected to game server');
-            socket.send(JSON.stringify({ type: 'start_single' }));
+            // Use current ghostCount state from props
+            socket.send(JSON.stringify({ type: 'start_single', ghostCount }));
             setGameMode('single');
         };
 
@@ -69,6 +73,7 @@ const Game: React.FC<GameProps> = ({ onLogout, onShowScoreboard, onOnlineCountCh
                 } else if (msg.type === 'game_start') {
                     setWaiting(false);
                     setGameMode(msg.mode);
+                    setLocalDirection(null);
                 } else if (msg.grid) {
                     setGameState(msg);
                 }
@@ -133,11 +138,14 @@ const Game: React.FC<GameProps> = ({ onLogout, onShowScoreboard, onOnlineCountCh
              if (gameMode === 'pair') {
                 ws.current.send(JSON.stringify({ type: 'join_pair' }));
              } else {
-                ws.current.send(JSON.stringify({ type: 'start_single' }));
+                ws.current.send(JSON.stringify({ type: 'start_single', ghostCount }));
              }
          }
     };
     
+    // Local state for ghostCount removed, using props instead
+
+
     if (waiting) {
         return (
             <div className="game-wrapper">
@@ -167,6 +175,24 @@ const Game: React.FC<GameProps> = ({ onLogout, onShowScoreboard, onOnlineCountCh
         <div className="game-wrapper">
              <div className="game-header">
                 {/* Online count moved to App header */}
+                {gameMode === 'single' && !gameState?.gameOver && localDirection === null && (
+                     <div style={{ zIndex: 100, marginTop: '5px', marginBottom: '20px' }}>
+                        <Slider 
+                            label="Ghosts"
+                            min={1}
+                            max={10}
+                            value={ghostCount}
+                            onChange={(count) => {
+                                const currentSocket = ws.current;
+                                if (!currentSocket || currentSocket.readyState !== WebSocket.OPEN) {
+                                    return;
+                                }
+                                currentSocket.send(JSON.stringify({ type: 'update_ghost_count', count }));
+                                onGhostCountChange(count);
+                            }}
+                        />
+                     </div>
+                )}
             </div>
             <GameBoard
                 grid={grid}
@@ -183,7 +209,7 @@ const Game: React.FC<GameProps> = ({ onLogout, onShowScoreboard, onOnlineCountCh
                     <GameOverDialog 
                         onRestart={handleRestart} 
                         onLogout={onLogout}
-                        onShowScoreboard={onShowScoreboard}
+                        onShowScoreboard={() => onShowScoreboard(ghostCount)}
                         onStartPairGame={handleStartPairGame}
                         showPairButton={lobbyStats.online_count > 1}
                         score={score}

@@ -27,14 +27,3 @@ type AuthRequest struct {
 	Nickname string `json:"nickname"`
 	Password string `json:"password"`
 }
-
-type ScoreEntry struct {
-	Nickname string `json:"nickname"`
-	Score    int    `json:"score"`
-}
-
-type PairScoreEntry struct {
-    Player1 string `json:"player1"`
-    Player2 string `json:"player2"`
-    Score   int    `json:"score"`
-}

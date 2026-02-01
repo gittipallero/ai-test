@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/villepalo/pacman-go-react/db"
+
 	"github.com/gorilla/websocket"
 )
 
@@ -82,7 +84,22 @@ func onApiWs(lobby *Lobby) http.HandlerFunc {
 				case "input":
 					handleGameInput(client, msg)
 				case "start_single":
-					startSinglePlayerGame(client)
+					ghostCount := 4
+					if countFloat, ok := msg["ghostCount"].(float64); ok {
+						ghostCount = int(countFloat)
+					}
+					startSinglePlayerGame(client, ghostCount)
+			case "update_ghost_count":
+				if countFloat, ok := msg["count"].(float64); ok {
+					if game := client.GetGame(); game != nil {
+						game.UpdateGhostCount(int(countFloat))
+						// Broadcast updated gamestate to client immediately
+						// Hold read lock to prevent data race with concurrent game.Update()
+						game.mu.RLock()
+						client.WriteJSON(game)
+						game.mu.RUnlock()
+					}
+				}
 				}
 			}
 		}()
@@ -94,7 +111,7 @@ func onApiScore(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	if !RequireDB(w) {
+	if !db.RequireDB(w) {
 		return
 	}
 
@@ -104,7 +121,10 @@ func onApiScore(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := SaveScore(req.Nickname, req.Score); err != nil {
+	// Using ghost count 4 as default/legacy if not provided in JSON or struct yet, 
+	// though standard request doesn't have it yet. Will update struct later.
+	// For now, assuming default 4 for legacy endpoint use, or we add field to struct.
+	if err := db.SaveScore(req.Nickname, req.Score, 4); err != nil {
 		fmt.Println("Score update error:", err)
 		http.Error(w, "Database error", http.StatusInternalServerError)
 		return
@@ -120,11 +140,17 @@ func onApiScoreboard(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	if !RequireDB(w) {
+	if !db.RequireDB(w) {
 		return
 	}
+	
+	ghosts := 4
+	// Allow query param ?ghosts=N
+	if gStr := r.URL.Query().Get("ghosts"); gStr != "" {
+		fmt.Sscanf(gStr, "%d", &ghosts)
+	}
 
-	scores, err := GetTopScores()
+	scores, err := db.GetTopScores(ghosts)
 	if err != nil {
 		fmt.Println("Scoreboard query error:", err)
 		http.Error(w, "Database error", http.StatusInternalServerError)
@@ -140,11 +166,11 @@ func onApiScoreboardPair(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	if !RequireDB(w) {
+	if !db.RequireDB(w) {
 		return
 	}
 
-	scores, err := GetTopPairScores()
+	scores, err := db.GetTopPairScores()
 	if err != nil {
 		fmt.Println("PairScoreboard query error:", err)
 		http.Error(w, "Database error", http.StatusInternalServerError)
@@ -160,7 +186,7 @@ func onApiSignup(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	if !RequireDB(w) {
+	if !db.RequireDB(w) {
 		return
 	}
 	var req AuthRequest
@@ -169,9 +195,9 @@ func onApiSignup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := CreateUser(req.Nickname, req.Password); err != nil {
+	if err := db.CreateUser(req.Nickname, req.Password); err != nil {
 		fmt.Println("Signup error:", err)
-		if errors.Is(err, ErrUsernameTaken) {
+		if errors.Is(err, db.ErrUsernameTaken) {
 			http.Error(w, "Username already taken", http.StatusConflict)
 		} else {
 			http.Error(w, "Server error", http.StatusInternalServerError)
@@ -201,7 +227,7 @@ func onApiLogin(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	if !RequireDB(w) {
+	if !db.RequireDB(w) {
 		return
 	}
 	var req AuthRequest
@@ -210,7 +236,7 @@ func onApiLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := VerifyUser(req.Nickname, req.Password); err != nil {
+	if err := db.VerifyUser(req.Nickname, req.Password); err != nil {
 		http.Error(w, "Invalid credentials", http.StatusUnauthorized)
 		return
 	}
@@ -280,14 +306,14 @@ func handleGameInput(client *Client, msg map[string]interface{}) {
 	}
 }
 
-func startSinglePlayerGame(client *Client) {
+func startSinglePlayerGame(client *Client, ghostCount int) {
 	// Similar to old main loop but running in goroutine per client (or associated with client)
 	// Actually, client.Game stores the state.
 
 	// If already in game, stop it?
 	// Let's assume start_single starts a new one.
 
-	game := NewGame([]string{client.Nickname})
+	game := NewGame([]string{client.Nickname}, ghostCount)
 	client.SetGame(game)
 
 	// Start Ticker Loop for this single player game
@@ -325,7 +351,9 @@ func startSinglePlayerGame(client *Client) {
 
 			if gameOver {
 				// Save score
-				if err := SaveScore(client.Nickname, score); err != nil {
+				// Save score with ghost count from game state. 
+				// We need to access game.GhostCount.
+				if err := db.SaveScore(client.Nickname, score, game.GhostCount); err != nil {
 					fmt.Println("Failed to save score:", err)
 				}
 				// Sleep a bit and stop
