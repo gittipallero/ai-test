@@ -167,6 +167,9 @@ func addGhostCountToScores(db *sql.DB) error {
 			WHERE tablename = 'scores' 
 			AND indexname = 'scores_nickname_ghost_count_key'
 		)`).Scan(&newConstraintExists)
+	if err != nil {
+		return fmt.Errorf("checking for new unique index: %w", err)
+	}
 
 	if !newConstraintExists {
 		consolidateSQL := `
