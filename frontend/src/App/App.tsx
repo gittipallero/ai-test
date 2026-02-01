@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import Game from '../game/Game/Game'
+import type { GameMode } from '../game/constants'
 import AuthForm from '../components/AuthForm/AuthForm'
 import ScoreBoard from '../components/ScoreBoard'
 import './App.css'
@@ -39,9 +40,14 @@ function App() {
     setOnlineCount(0)
   }
 
-  const handleShowScoreboard = (count?: number) => {
+  const [scoreboardMode, setScoreboardMode] = useState<GameMode>('single')
+
+  const handleShowScoreboard = (count?: number, mode?: GameMode) => {
     if (count) {
       setGhostCount(count)
+    }
+    if (mode) {
+      setScoreboardMode(mode)
     }
     setCurrentView('scoreboard')
   }
@@ -65,7 +71,7 @@ function App() {
           {!isAuthenticated ? (
             <AuthForm onLoginSuccess={handleLoginSuccess} />
           ) : currentView === 'scoreboard' ? (
-            <ScoreBoard onBack={handleBackToGame} initialGhostCount={ghostCount} />
+            <ScoreBoard onBack={handleBackToGame} initialGhostCount={ghostCount} activeMode={scoreboardMode} />
           ) : (
             <Game 
               onLogout={handleLogout}
