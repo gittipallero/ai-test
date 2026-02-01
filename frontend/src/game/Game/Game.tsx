@@ -14,9 +14,11 @@ interface GameProps {
     onOnlineCountChange: (count: number) => void;
     username: string;
     authToken: string;
+    ghostCount: number;
+    onGhostCountChange: (count: number) => void;
 }
 
-const Game: React.FC<GameProps> = ({ onLogout, onShowScoreboard, onOnlineCountChange, username, authToken }) => {
+const Game: React.FC<GameProps> = ({ onLogout, onShowScoreboard, onOnlineCountChange, username, authToken, ghostCount, onGhostCountChange }) => {
     const [gameState, setGameState] = useState<GameState | null>(null);
     const [waiting, setWaiting] = useState(false);
     const [lobbyStats, setLobbyStats] = useState<LobbyStats>({ online_count: 0 });
@@ -52,9 +54,8 @@ const Game: React.FC<GameProps> = ({ onLogout, onShowScoreboard, onOnlineCountCh
         
         socket.onopen = () => {
             console.log('Connected to game server');
-            // Use current ghostCount state if available, but here we are in initial connection
-            // We can default to 4 or rely on default state since we haven't rendered slider yet
-            socket.send(JSON.stringify({ type: 'start_single', ghostCount: 4 }));
+            // Use current ghostCount state from props
+            socket.send(JSON.stringify({ type: 'start_single', ghostCount }));
             setGameMode('single');
         };
 
@@ -142,7 +143,8 @@ const Game: React.FC<GameProps> = ({ onLogout, onShowScoreboard, onOnlineCountCh
          }
     };
     
-    const [ghostCount, setGhostCount] = useState(4);
+    // Local state for ghostCount removed, using props instead
+
 
     if (waiting) {
         return (
@@ -186,7 +188,7 @@ const Game: React.FC<GameProps> = ({ onLogout, onShowScoreboard, onOnlineCountCh
                                     return;
                                 }
                                 currentSocket.send(JSON.stringify({ type: 'update_ghost_count', count }));
-                                setGhostCount(count);
+                                onGhostCountChange(count);
                             }}
                         />
                      </div>
