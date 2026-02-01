@@ -178,10 +178,12 @@ const Game: React.FC<GameProps> = ({ onLogout, onShowScoreboard, onOnlineCountCh
                             max={10}
                             value={ghostCount}
                             onChange={(count) => {
-                                setGhostCount(count);
-                                if (ws.current) {
-                                    ws.current.send(JSON.stringify({ type: 'update_ghost_count', count }));
+                                const currentSocket = ws.current;
+                                if (!currentSocket || currentSocket.readyState !== WebSocket.OPEN) {
+                                    return;
                                 }
+                                currentSocket.send(JSON.stringify({ type: 'update_ghost_count', count }));
+                                setGhostCount(count);
                             }}
                         />
                      </div>
