@@ -62,28 +62,10 @@ func (l *Lobby) Run() {
 	for {
 		select {
 		case client := <-l.register:
-			l.mu.Lock()
-			l.clients[client] = true
-			l.mu.Unlock()
-			log.Printf("Client registered: %s", client.Nickname)
-			l.BroadcastPlayerCount()
+			l.onClientRegistered(client)
 
 		case client := <-l.unregister:
-			l.mu.Lock()
-			if _, ok := l.clients[client]; ok {
-				delete(l.clients, client)
-				close(client.Send)
-			}
-			// Remove from waiting list if present
-			for i, c := range l.waiting {
-				if c == client {
-					l.waiting = append(l.waiting[:i], l.waiting[i+1:]...)
-					break
-				}
-			}
-			l.mu.Unlock()
-			log.Printf("Client unregistered: %s", client.Nickname)
-			l.BroadcastPlayerCount()
+			l.onClientUnregistered(client)
 
 		case message := <-l.broadcast:
 			l.mu.Lock()
@@ -100,15 +82,16 @@ func (l *Lobby) Run() {
 	}
 }
 
+// JoinPairQueue handles a client's request to join the matchmaking queue.
+// It checks if the client is already waiting, adds them to the queue if not,
+// and starts a game if a pair is found. Otherwise, it notifies the client that they are waiting.
 func (l *Lobby) JoinPairQueue(client *Client) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 
 	// Check if already waiting
-	for _, c := range l.waiting {
-		if c == client {
-			return
-		}
+	if l.isWaiting(client) {
+		return
 	}
 
 	l.waiting = append(l.waiting, client)
@@ -156,53 +139,62 @@ func (l *Lobby) StartPairGame(p1, p2 *Client) {
 			"p1":   p1.Nickname,
 			"p2":   p2.Nickname,
 		}
-		p1.WriteJSON(startMsg)
-		p2.WriteJSON(startMsg)
+		l.broadcastToPair(p1, p2, startMsg)
 
 		for range ticker.C {
-			game.Update()
-
-			game.mu.RLock()
-			// Check if game is over (both dead)
-			if game.GameOver {
-				game.mu.RUnlock()
-				// Send final state
-				game.mu.RLock()
-				state := game
-				game.mu.RUnlock()
-
-				p1.WriteJSON(state)
-				p2.WriteJSON(state)
-
-				// Save Score
-				SavePairScore(p1.Nickname, p2.Nickname, state.Score)
-
-				l.cleanupPairGame(game, p1, p2)
-				return
-			}
-			// Broadcast state to both players
-			// We need to marshal it once
-			// Actually, WriteJSON does marshal.
-			// Let's rely on that for now, minimal optimization needed.
-
-			// NOTE: We are sending the WHOLE state. P1 and P2 need to know which Pacman they are.
-			// But the client can just check the "Players" map by their nickname.
-
-			err1 := p1.WriteJSON(game)
-			err2 := p2.WriteJSON(game)
-			game.mu.RUnlock()
-
-			if err1 != nil || err2 != nil {
-				log.Println("Error writing to client in pair game, ending game")
-				game.mu.Lock()
-				game.GameOver = true // Stop updates
-				game.mu.Unlock()
-				l.cleanupPairGame(game, p1, p2)
-				// In a real app we might handle reconnection or pause
+			if !l.handleGameTick(game, p1, p2) {
 				return
 			}
 		}
 	}()
+}
+
+func (l *Lobby) broadcastToPair(p1, p2 *Client, message interface{}) error {
+	err1 := p1.WriteJSON(message)
+	err2 := p2.WriteJSON(message)
+	if err1 != nil {
+		return err1
+	}
+	return err2
+}
+
+func (l *Lobby) handleGameTick(game *GameState, p1, p2 *Client) bool {
+	game.Update()
+
+	game.mu.RLock()
+	// Check if game is over (both dead)
+	if game.GameOver {
+		l.handleGameOver(game, p1, p2)
+		return false
+	}
+
+	err := l.broadcastToPair(p1, p2, game)
+	game.mu.RUnlock()
+
+	if err != nil {
+		log.Println("Error writing to client in pair game, ending game")
+		game.mu.Lock()
+		game.GameOver = true // Stop updates
+		game.mu.Unlock()
+		l.cleanupPairGame(game, p1, p2)
+		return false
+	}
+	return true
+}
+
+func (l *Lobby) handleGameOver(game *GameState, p1, p2 *Client) {
+	game.mu.RUnlock()
+	// Send final state
+	game.mu.RLock()
+	state := game
+	game.mu.RUnlock()
+
+	l.broadcastToPair(p1, p2, state)
+
+	// Save Score
+	SavePairScore(p1.Nickname, p2.Nickname, state.Score)
+
+	l.cleanupPairGame(game, p1, p2)
 }
 
 func (l *Lobby) cleanupPairGame(game *GameState, p1, p2 *Client) {
@@ -232,4 +224,39 @@ func (l *Lobby) BroadcastPlayerCount() {
 	for client := range l.clients {
 		client.WriteJSON(msg)
 	}
+}
+
+func (l *Lobby) isWaiting(client *Client) bool {
+	for _, c := range l.waiting {
+		if c == client {
+			return true
+		}
+	}
+	return false
+}
+
+func (l *Lobby) onClientRegistered(client *Client) {
+	l.mu.Lock()
+	l.clients[client] = true
+	l.mu.Unlock()
+	log.Printf("Client registered: %s", client.Nickname)
+	l.BroadcastPlayerCount()
+}
+
+func (l *Lobby) onClientUnregistered(client *Client) {
+	l.mu.Lock()
+	if _, ok := l.clients[client]; ok {
+		delete(l.clients, client)
+		close(client.Send)
+	}
+	// Remove from waiting list if present
+	for i, c := range l.waiting {
+		if c == client {
+			l.waiting = append(l.waiting[:i], l.waiting[i+1:]...)
+			break
+		}
+	}
+	l.mu.Unlock()
+	log.Printf("Client unregistered: %s", client.Nickname)
+	l.BroadcastPlayerCount()
 }
