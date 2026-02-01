@@ -28,6 +28,7 @@ const ScoreBoard: React.FC<ScoreBoardProps> = ({ onBack, initialGhostCount = 4 }
 
     const handleGhostCountChange = (num: number) => {
         setLoading(true);
+        setError(null);
         setViewGhostCount(num);
     };
 
@@ -39,6 +40,7 @@ const ScoreBoard: React.FC<ScoreBoardProps> = ({ onBack, initialGhostCount = 4 }
             .then(([singleData, pairData]) => {
                 setSingleScores(singleData || []);
                 setPairScores(pairData || []);
+                setError(null);
                 setLoading(false);
             })
             .catch(err => {
