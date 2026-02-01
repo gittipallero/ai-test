@@ -223,42 +223,7 @@ func (g *GameState) getValidGhostDirs(ghost *Ghost) []Direction {
 	return validDirs
 }
 
-func (g *GameState) checkCollisions() {
-	for i, ghost := range g.Ghosts {
-		for _, p := range g.Players {
-			if !p.Alive {
-				continue
-			}
-			
-			// Direct collision or Swap collision
-			// Swap collision: Ghost is at Player's old pos, Player is at Ghost's old pos
-			collision := (ghost.Pos == p.Pos) || (ghost.Pos == p.LastPos && ghost.LastPos == p.Pos)
 
-			if collision {
-				// Collision
-				if g.PowerModeTime > 0 {
-					g.Score += 200
-					g.Ghosts[i].Pos = Position{X: 9, Y: 8} // Send home
-					g.Ghosts[i].LastPos = Position{X: 9, Y: 8}
-				} else {
-					p.Alive = false // Kill player
-				}
-			}
-		}
-	}
-    
-    // Check if any players alive
-    anyAlive := false
-    for _, p := range g.Players {
-        if p.Alive {
-            anyAlive = true
-            break
-        }
-    }
-    if !anyAlive {
-        g.GameOver = true
-    }
-}
 
 func (g *GameState) canMove(pos Position, dir Direction) bool {
 	next := g.getNextPos(pos, dir)
