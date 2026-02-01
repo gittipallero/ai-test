@@ -1,48 +1,127 @@
 package db
 
 import (
+	"database/sql"
 	"fmt"
+	"log"
+	"sort"
 )
 
-func createUsersTable() error {
+type Migration struct {
+	ID   int
+	Name string
+	Run  func(*sql.DB) error
+}
+
+var migrations = []Migration{
+	{
+		ID:   1,
+		Name: "InitSchema",
+		Run:  initSchema,
+	},
+	{
+		ID:   2,
+		Name: "AddGhostCountToScores",
+		Run:  addGhostCountToScores,
+	},
+	{
+		ID:   3,
+		Name: "FixPairScoresConstraint",
+		Run:  fixPairScoresConstraint,
+	},
+}
+
+func ensureSchemaMigrationsTable(db *sql.DB) error {
+	_, err := db.Exec(`CREATE TABLE IF NOT EXISTS schema_migrations (
+		id INT PRIMARY KEY,
+		name TEXT NOT NULL,
+		run_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+	)`)
+	return err
+}
+
+func RunMigrations(db *sql.DB) error {
+	if err := ensureSchemaMigrationsTable(db); err != nil {
+		return fmt.Errorf("ensuring migrations table: %w", err)
+	}
+
+	// Get applied migrations
+	rows, err := db.Query("SELECT id FROM schema_migrations")
+	if err != nil {
+		return fmt.Errorf("fetching migrations: %w", err)
+	}
+	defer rows.Close()
+
+	applied := make(map[int]bool)
+	for rows.Next() {
+		var id int
+		if err := rows.Scan(&id); err != nil {
+			return err
+		}
+		applied[id] = true
+	}
+
+	// Sort migrations just in case
+	sort.Slice(migrations, func(i, j int) bool {
+		return migrations[i].ID < migrations[j].ID
+	})
+
+	for _, m := range migrations {
+		if applied[m.ID] {
+			continue
+		}
+
+		log.Printf("Running migration %d: %s", m.ID, m.Name)
+		if err := m.Run(db); err != nil {
+			return fmt.Errorf("migration %d (%s) failed: %w", m.ID, m.Name, err)
+		}
+
+		_, err := db.Exec("INSERT INTO schema_migrations (id, name) VALUES ($1, $2)", m.ID, m.Name)
+		if err != nil {
+			return fmt.Errorf("recording migration %d: %w", m.ID, err)
+		}
+	}
+
+	return nil
+}
+
+// Migration 1: Initial Schema
+func initSchema(db *sql.DB) error {
 	createUsersTableSQL := `CREATE TABLE IF NOT EXISTS users (
 		id SERIAL PRIMARY KEY,
 		nickname TEXT UNIQUE NOT NULL,
 		password_hash TEXT NOT NULL
 	);`
-	_, err := db.Exec(createUsersTableSQL)
-	return err
-}
+	if _, err := db.Exec(createUsersTableSQL); err != nil {
+		return fmt.Errorf("creating users table: %w", err)
+	}
 
-func createScoresTable() error {
-	// Added ghost_count column defaulting to 4 for existing logic compatibility
 	createScoresTableSQL := `CREATE TABLE IF NOT EXISTS scores (
 		id SERIAL PRIMARY KEY,
 		nickname TEXT NOT NULL,
 		score INT NOT NULL,
-		ghost_count INT DEFAULT 4,
-		updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-		UNIQUE(nickname, ghost_count)
+		updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 	);`
-	_, err := db.Exec(createScoresTableSQL)
-	return err
-}
-
-func createPairScoresTable() error {
+	if _, err := db.Exec(createScoresTableSQL); err != nil {
+		return fmt.Errorf("creating scores table: %w", err)
+	}
+	
 	createPairScoresTableV2 := `CREATE TABLE IF NOT EXISTS pair_scores (
 		id SERIAL PRIMARY KEY,
 		player1 TEXT NOT NULL,
 		player2 TEXT NOT NULL,
 		score INT NOT NULL,
-		updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-		UNIQUE(player1, player2)
+		updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 	);`
-
-	_, err := db.Exec(createPairScoresTableV2)
-	return err
+	if _, err := db.Exec(createPairScoresTableV2); err != nil {
+		return fmt.Errorf("creating pair_scores table: %w", err)
+	}
+	
+	return nil
 }
 
-func migrateScoresTable() error {
+// Migration 2: Add Ghost Count
+func addGhostCountToScores(db *sql.DB) error {
 	// Check if ghost_count column exists
 	var colExists bool
 	err := db.QueryRow(`
@@ -55,7 +134,6 @@ func migrateScoresTable() error {
 	}
 
 	if !colExists {
-		fmt.Println("Migrating scores table: adding ghost_count column")
 		// Add column with default 4
 		_, err = db.Exec(`ALTER TABLE scores ADD COLUMN ghost_count INT DEFAULT 4`)
 		if err != nil {
@@ -64,7 +142,6 @@ func migrateScoresTable() error {
 	}
 	
 	// Check for the old unique constraint (nickname) and drop it if needed
-	// Postgres usually names unique constraints as tablename_columnname_key
 	var constraintExists bool
 	err = db.QueryRow(`
 		SELECT EXISTS (
@@ -76,18 +153,12 @@ func migrateScoresTable() error {
 	}
 
 	if constraintExists {
-		fmt.Println("Migrating scores table: dropping old unique constraint scores_nickname_key")
 		_, err = db.Exec(`ALTER TABLE scores DROP CONSTRAINT scores_nickname_key`)
 		if err != nil {
 			return fmt.Errorf("dropping old constraint: %w", err)
 		}
 	}
 
-	// Ensure new unique constraint (nickname, ghost_count) exists
-	// We can try to add it, if it exists it might fail or we can check first. 
-	// Easier to just use ADD CONSTRAINT IF NOT EXISTS syntax if using newer Postgres, 
-	// but standard way is create unique index.
-	
 	// Check if the new unique index/constraint exists
 	var newConstraintExists bool
 	err = db.QueryRow(`
@@ -98,10 +169,6 @@ func migrateScoresTable() error {
 		)`).Scan(&newConstraintExists)
 
 	if !newConstraintExists {
-		fmt.Println("Migrating scores table: adding unique constraint (nickname, ghost_count)")
-		// It might fail if there are duplicates now (same nickname multiple times with ghost_count=4)
-		// We should consolidate duplicates first if any.
-		
 		consolidateSQL := `
 			DELETE FROM scores s1
 			USING scores s2
@@ -119,14 +186,11 @@ func migrateScoresTable() error {
 			return fmt.Errorf("creating new unique index: %w", err)
 		}
 	}
-	
 	return nil
 }
 
-func migratePairScores() error {
-	// Migration for existing tables: ensure unique constraint exists for (player1, player2).
-	// The ON CONFLICT clause in SavePairScore requires this constraint.
-	// First, check if the unique index already exists to avoid unnecessary work.
+// Migration 3: Pair Scores Constraint
+func fixPairScoresConstraint(db *sql.DB) error {
 	var indexExists bool
 	err := db.QueryRow(`
 		SELECT EXISTS (
@@ -139,9 +203,6 @@ func migratePairScores() error {
 	}
 
 	if !indexExists {
-		// Before creating the unique index, consolidate any duplicate (player1, player2) entries
-		// by keeping only the row with the highest score for each pair.
-		// This handles existing databases that may have duplicate entries from before this constraint.
 		consolidateDuplicatesSQL := `
 			DELETE FROM pair_scores p1
 			USING pair_scores p2
@@ -154,13 +215,11 @@ func migratePairScores() error {
 			return fmt.Errorf("consolidating duplicate pair_scores: %w", err)
 		}
 
-		// Now create the unique index - this will succeed since duplicates have been removed
 		addPairScoresUniqueConstraint := `CREATE UNIQUE INDEX IF NOT EXISTS pair_scores_player1_player2_key ON pair_scores (player1, player2);`
 		_, err = db.Exec(addPairScoresUniqueConstraint)
 		if err != nil {
 			return fmt.Errorf("adding unique constraint to pair_scores: %w", err)
 		}
-		fmt.Println("Migrated pair_scores table: consolidated duplicates and added unique constraint")
 	}
 	return nil
 }

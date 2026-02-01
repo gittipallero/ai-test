@@ -44,32 +44,8 @@ func InitDB() {
 		return
 	}
 
-	if err = createUsersTable(); err != nil {
-		fmt.Printf("Error creating users table: %v\n", err)
-		closeDB()
-		return
-	}
-
-	if err = createScoresTable(); err != nil {
-		fmt.Printf("Error creating scores table: %v\n", err)
-		closeDB()
-		return
-	}
-
-	if err = createPairScoresTable(); err != nil {
-		fmt.Printf("Error creating pair_scores table: %v\n", err)
-		closeDB()
-		return
-	}
-	
-	if err = migrateScoresTable(); err != nil {
-		fmt.Printf("Error migrating scores table: %v\n", err)
-		closeDB()
-		return
-	}
-
-	if err = migratePairScores(); err != nil {
-		fmt.Printf("Error migrating pair_scores table: %v\n", err)
+	if err = RunMigrations(db); err != nil {
+		fmt.Printf("Error running migrations: %v\n", err)
 		closeDB()
 		return
 	}
