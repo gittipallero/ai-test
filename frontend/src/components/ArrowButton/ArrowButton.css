@@ -1,0 +1,19 @@
+.arrow-btn {
+    background-color: rgba(64, 49, 141, 0.8);
+    border: 2px solid var(--c64-border);
+    color: var(--c64-text);
+    font-size: 24px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 60px;
+    height: 60px;
+    border-radius: 8px;
+    cursor: pointer;
+    touch-action: manipulation;
+}
+
+.arrow-btn:active {
+    background-color: var(--c64-fg);
+    color: var(--c64-bg);
+}

@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { COLS, BLOCK_SIZE } from './constants';
-import type { Direction, GameMode, GameState, LobbyStats } from './constants';
-import GameBoard from './GameBoard';
-import GameOverDialog from '../components/GameOverDialog';
-import TouchControls from '../components/TouchControls';
+import { COLS, BLOCK_SIZE } from '../constants';
+import type { Direction, GameMode, GameState, LobbyStats } from '../constants';
+import GameBoard from '../GameBoard';
+import GameOverDialog from '../../components/GameOverDialog/GameOverDialog';
+import TouchControls from '../../components/TouchControls/TouchControls';
 
 import './Game.css';
 

@@ -1,5 +1,5 @@
 import React from 'react';
-import GameButton from './GameButton';
+import GameButton from '../GameButton/GameButton';
 import './GameOverDialog.css';
 
 interface GameOverDialogProps {

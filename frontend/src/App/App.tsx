@@ -1,7 +1,7 @@
 import { useState } from 'react'
-import Game from './game/Game'
-import AuthForm from './components/AuthForm'
-import ScoreBoard from './components/ScoreBoard'
+import Game from '../game/Game/Game'
+import AuthForm from '../components/AuthForm/AuthForm'
+import ScoreBoard from '../components/ScoreBoard'
 import './App.css'
 
 const USERNAME_STORAGE_KEY = 'pacman.username'

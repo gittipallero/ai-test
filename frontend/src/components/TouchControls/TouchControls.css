@@ -15,42 +15,22 @@
     align-items: center;
 }
 
-.d-btn {
-    background-color: rgba(64, 49, 141, 0.8);
-    border: 2px solid var(--c64-border);
-    color: var(--c64-text);
-    font-size: 24px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    width: 60px;
-    height: 60px;
-    border-radius: 8px;
-    cursor: pointer;
-    touch-action: manipulation;
-}
-
-.d-btn:active {
-    background-color: var(--c64-fg);
-    color: var(--c64-bg);
-}
-
-.d-btn.up {
+.d-btn.up, .up {
     grid-column: 2;
     grid-row: 1;
 }
 
-.d-btn.left {
+.d-btn.left, .left {
     grid-column: 1;
     grid-row: 2;
 }
 
-.d-btn.right {
+.d-btn.right, .right {
     grid-column: 3;
     grid-row: 2;
 }
 
-.d-btn.down {
+.d-btn.down, .down {
     grid-column: 2;
     grid-row: 3;
 }
