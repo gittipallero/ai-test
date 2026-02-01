@@ -10,10 +10,11 @@ A classic Pacman game clone with a **Commodore 64 retro aesthetic**, built with 
 ## ✨ Features
 
 - 🕹️ Classic Pacman gameplay with arrow key controls
-- 👻 4 ghosts (red, pink, cyan, orange) with AI movement
+- 👻 **Adaptive Ghost Difficulty**: Choose 1-10 ghosts for varied challenge
 - ⚡ Power pellet mechanic with 5-second power mode
 - 🎯 Score tracking and collision detection
-- 🏆 Scores persisted server-side on game over
+- 🏆 **Multi-board High Scores**: Separate leaderboards for each ghost count setting
+- 🤝 **Pair Mode**: Two players on same map with shared score
 - 🔐 User authentication (signup/login)
 - 🎨 Retro C64-style visual design
 
@@ -24,34 +25,27 @@ A classic Pacman game clone with a **Commodore 64 retro aesthetic**, built with 
 ├── frontend/               # React application
 │   ├── src/
 │   │   ├── App.tsx              # Main app component
-│   │   ├── App.css              # App styling
 │   │   ├── game/
-│   │   │   ├── Game.tsx         # Game screen + socket handling
-│   │   │   ├── GameBoard/       # Board rendering layers
-│   │   │   │   ├── index.tsx
-│   │   │   │   ├── GridLayer.tsx
-│   │   │   │   ├── PlayerLayer.tsx
-│   │   │   │   ├── GhostLayer.tsx
-│   │   │   │   └── ScoreDisplay.tsx
-│   │   │   ├── Game.css         # Game styling
-│   │   │   └── constants.ts     # Game constants, types, and map data
+│   │   │   ├── Game.tsx         # Game logic & ghost slider
+│   │   │   ├── GameBoard/       # Board rendering
+│   │   │   └── constants.ts     # Game constants
 │   │   ├── components/
-│   │   │   ├── AuthForm.tsx     # User authentication form
-│   │   │   ├── GameButton.tsx   # Reusable game button component
-│   │   │   ├── GameOverDialog.tsx # Game over dialog component
-│   │   │   ├── ScoreBoard/      # High score view
-│   │   │   │   ├── index.tsx
-│   │   │   │   └── ScoreTable.tsx
-│   │   │   └── TouchControls.tsx # Mobile touch controls
-│   │   └── main.tsx             # Entry point
+│   │   │   ├── ScoreBoard/      # Tabbed high score view
+│   │   │   └── ...
 │   └── package.json
 │
 ├── backend/                # Go server
-│   ├── main.go                  # HTTP server with API endpoints
-│   ├── go.mod
-│   └── go.sum
+│   ├── main.go                  # Entry point
+│   ├── routes.go                # API & Websocket handlers
+│   ├── game.go                  # Game logic & state
+│   ├── lobby.go                 # Matchmaking
+│   ├── db/                      # Database package
+│   │   ├── db.go                # Connection & queries
+│   │   └── migration.go         # Schema migrations
+│   └── go.mod
 │
 ├── infra/                  # Azure infrastructure
+```
 │   ├── main.bicep               # Main Bicep deployment file
 │   └── modules/                 # Bicep modules
 │

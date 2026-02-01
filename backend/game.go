@@ -23,10 +23,11 @@ type GameState struct {
 	PowerModeTime int                     `json:"powerModeTime"`
 	LastEatTime   int64                   `json:"lastEatTime"`
 	GameOver      bool                    `json:"gameOver"`
+	GhostCount    int                     `json:"ghostCount"`
 	mu            sync.RWMutex            `json:"-"`
 }
 
-func NewGame(nicknames []string) *GameState {
+func NewGame(nicknames []string, ghostCount int) *GameState {
 	// Deep copy grid
 	var grid [Rows][Cols]int
 	for y := 0; y < Rows; y++ {
@@ -58,17 +59,67 @@ func NewGame(nicknames []string) *GameState {
 		}
 	}
 
+	if ghostCount <= 0 {
+		ghostCount = 4
+	}
+
 	game := &GameState{
 		Grid:          grid,
 		Players:       players,
-		Ghosts:        make([]Ghost, len(InitialGhosts)),
+		Ghosts:        generateGhosts(ghostCount),
 		Score:         0,
 		PowerModeTime: 0,
 		LastEatTime:   time.Now().UnixMilli(),
 		GameOver:      false,
+		GhostCount:    ghostCount,
 	}
-	copy(game.Ghosts, InitialGhosts)
 	return game
+}
+
+// UpdateGhostCount updates the number of ghosts if the game hasn't really started (no movement)
+func (g *GameState) UpdateGhostCount(count int) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+
+	// Check if any player has moved. If so, do not allow changing ghosts.
+	for _, p := range g.Players {
+		if p.Dir != "" {
+			return
+		}
+	}
+	
+	if count < 1 {
+		count = 1
+	}
+	if count > 10 {
+		count = 10
+	}
+
+	g.GhostCount = count
+	g.Ghosts = generateGhosts(count)
+}
+
+func generateGhosts(count int) []Ghost {
+	// We have 4 initial ghosts with positions/colors in InitialGhosts
+	// If count > 4, we need to generate more or reuse positions
+	ghosts := make([]Ghost, count)
+	
+	for i := 0; i < count; i++ {
+		// Use predefined if available, otherwise wrap around or fallback
+		if i < len(InitialGhosts) {
+			ghosts[i] = InitialGhosts[i]
+		} else {
+			// Reuse properties from the first 4 but maybe modify ID or slightly different pos if we want
+			base := InitialGhosts[i % len(InitialGhosts)]
+			ghosts[i] = Ghost{
+				ID:    i + 1,
+				Pos:   base.Pos, // Start at same spots essentially (incubator)
+				Dir:   base.Dir,
+				Color: base.Color, // Duplicate colors for now or we could add more colors
+			}
+		}
+	}
+	return ghosts
 }
 
 func (g *GameState) SetNextDirection(nickname string, dir Direction) {

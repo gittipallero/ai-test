@@ -13,7 +13,7 @@
     align-items: center;
     justify-content: center;
     color: var(--c64-text);
-    font-family: 'Press Start 2P', cursive;
+    font-family: var(--font-c64);
     margin-bottom: 20px;
     width: 100%;
 }

@@ -3,13 +3,14 @@ import { COLS, BLOCK_SIZE } from '../constants';
 import type { Direction, GameMode, GameState, LobbyStats } from '../constants';
 import GameBoard from '../GameBoard';
 import GameOverDialog from '../../components/GameOverDialog/GameOverDialog';
+import Slider from '../../components/Slider/Slider';
 import TouchControls from '../../components/TouchControls/TouchControls';
 
 import './Game.css';
 
 interface GameProps {
     onLogout: () => void;
-    onShowScoreboard: () => void;
+    onShowScoreboard: (ghostCount?: number) => void;
     onOnlineCountChange: (count: number) => void;
     username: string;
     authToken: string;
@@ -138,6 +139,8 @@ const Game: React.FC<GameProps> = ({ onLogout, onShowScoreboard, onOnlineCountCh
          }
     };
     
+    const [ghostCount, setGhostCount] = useState(4);
+
     if (waiting) {
         return (
             <div className="game-wrapper">
@@ -167,6 +170,22 @@ const Game: React.FC<GameProps> = ({ onLogout, onShowScoreboard, onOnlineCountCh
         <div className="game-wrapper">
              <div className="game-header">
                 {/* Online count moved to App header */}
+                {gameMode === 'single' && !gameState?.gameOver && localDirection === null && (
+                     <div style={{ zIndex: 100, marginTop: '5px', marginBottom: '20px' }}>
+                        <Slider 
+                            label="Ghosts"
+                            min={1}
+                            max={10}
+                            value={ghostCount}
+                            onChange={(count) => {
+                                setGhostCount(count);
+                                if (ws.current) {
+                                    ws.current.send(JSON.stringify({ type: 'update_ghost_count', count }));
+                                }
+                            }}
+                        />
+                     </div>
+                )}
             </div>
             <GameBoard
                 grid={grid}
@@ -183,7 +202,7 @@ const Game: React.FC<GameProps> = ({ onLogout, onShowScoreboard, onOnlineCountCh
                     <GameOverDialog 
                         onRestart={handleRestart} 
                         onLogout={onLogout}
-                        onShowScoreboard={onShowScoreboard}
+                        onShowScoreboard={() => onShowScoreboard(ghostCount)}
                         onStartPairGame={handleStartPairGame}
                         showPairButton={lobbyStats.online_count > 1}
                         score={score}

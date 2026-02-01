@@ -91,6 +91,8 @@ The game logic is in `frontend/src/game/`:
 - CSS files co-located with components
 - Game state managed with React `useState`
 - **Prefer modularity**: Break large components into smaller, reusable components. Each component should have a single responsibility. Avoid monolithic components—extract dialogs, overlays, and repeated UI patterns into their own component files.
+- UI Components must be in their own directory. If a component have .css and .tsx files, they must be in the same directory.
+- UI C64 like pixelated look
 
 ## Testing & Quality
 

@@ -5,6 +5,7 @@
   --c64-text: #FFFFFF;
   --game-width: 600px;
   --game-height: 480px;
+  --font-c64: 'Press Start 2P', monospace;
 }
 
 body {
@@ -15,7 +16,7 @@ body {
   min-height: 100vh;
   background-color: var(--c64-bg);
   color: var(--c64-text);
-  font-family: 'VT323', monospace;
+  font-family: var(--font-c64);
   font-size: 24px;
   image-rendering: pixelated;
   -webkit-font-smoothing: none;
@@ -37,7 +38,7 @@ button {
   color: var(--c64-text);
   border: 2px solid #fff;
   padding: 10px 20px;
-  font-family: 'VT323', monospace;
+  font-family: var(--font-c64);
   font-size: 24px;
   cursor: pointer;
   text-transform: uppercase;

@@ -16,17 +16,20 @@ interface PairScoreEntry {
 
 interface ScoreBoardProps {
     onBack: () => void;
+    initialGhostCount?: number;
 }
 
-const ScoreBoard: React.FC<ScoreBoardProps> = ({ onBack }) => {
+const ScoreBoard: React.FC<ScoreBoardProps> = ({ onBack, initialGhostCount = 4 }) => {
     const [singleScores, setSingleScores] = useState<ScoreEntry[]>([]);
     const [pairScores, setPairScores] = useState<PairScoreEntry[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [viewGhostCount, setViewGhostCount] = useState(initialGhostCount);
 
     useEffect(() => {
+        setLoading(true);
         Promise.all([
-            fetch('/api/scoreboard').then(res => res.json()),
+            fetch(`/api/scoreboard?ghosts=${viewGhostCount}`).then(res => res.json()),
             fetch('/api/scoreboard/pair').then(res => res.json())
         ])
             .then(([singleData, pairData]) => {
@@ -39,7 +42,7 @@ const ScoreBoard: React.FC<ScoreBoardProps> = ({ onBack }) => {
                 setError('Failed to load scoreboards');
                 setLoading(false);
             });
-    }, []);
+    }, [viewGhostCount]);
 
     const singleRows: ScoreTableRow[] = singleScores.map((entry, index) => ({
         key: `${entry.nickname}-${index}`,
@@ -59,6 +62,27 @@ const ScoreBoard: React.FC<ScoreBoardProps> = ({ onBack }) => {
     return (
         <div className="scoreboard-container">
             <h2 className="scoreboard-title">*** HIGH SCORES ***</h2>
+            
+            <div className="ghost-selector" style={{ display: 'flex', justifyContent: 'center', gap: '5px', marginBottom: '10px', flexWrap: 'wrap' }}>
+                <span style={{ color: '#fff', marginRight: '10px' }}>Ghosts:</span>
+                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(num => (
+                    <button 
+                        key={num} 
+                        className={`ghost-btn ${viewGhostCount === num ? 'active' : ''}`}
+                        onClick={() => setViewGhostCount(num)}
+                        style={{ 
+                            padding: '5px 10px', 
+                            cursor: 'pointer', 
+                            backgroundColor: viewGhostCount === num ? '#ffff00' : '#333',
+                            color: viewGhostCount === num ? '#000' : '#fff',
+                            border: '1px solid #fff',
+                            borderRadius: '4px'
+                        }}
+                    >
+                        {num}
+                    </button>
+                ))}
+            </div>
             
             {loading && <div className="scoreboard-loading">LOADING...</div>}
             {error && <div className="scoreboard-error">{error}</div>}

@@ -6,8 +6,8 @@ import (
 )
 
 func TestScoreCalculation(t *testing.T) {
-	// Initialize game with one player
-	game := NewGame([]string{"tester"})
+	// Initialize game with one player, 4 ghosts
+	game := NewGame([]string{"tester"}, 4)
 	p := game.Players["tester"]
 	
 	// Mock a scenario where Pacman eats a dot

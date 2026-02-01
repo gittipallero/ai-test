@@ -1,0 +1,62 @@
+/* C64 Slider Styling */
+.slider-container {
+    background-color: #352879; /* C64 Blue */
+    padding: 15px;
+    border: 4px solid #887ecb; /* C64 Light Blue Border */
+    box-shadow: 4px 4px 0px #000;
+    color: #ffffff;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    font-family: var(--font-c64);
+    image-rendering: pixelated;
+}
+
+.slider-label {
+    margin-bottom: 10px;
+    font-size: 12px;
+    text-transform: uppercase;
+    text-shadow: 2px 2px 0 #000;
+}
+
+.slider-input {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 200px;
+    height: 20px;
+    background: #000;
+    outline: none;
+    border: 2px solid #fff;
+}
+
+/* Slider Thumb - Webkit */
+.slider-input::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 20px;
+    height: 20px;
+    background: #ffff00; /* Yellow */
+    cursor: pointer;
+    border: 2px solid #000;
+    box-shadow: inset 2px 2px 0 rgba(255,255,255,0.5);
+}
+
+/* Slider Thumb - Moz */
+.slider-input::-moz-range-thumb {
+    width: 20px;
+    height: 20px;
+    background: #ffff00;
+    cursor: pointer;
+    border: 2px solid #000;
+    border-radius: 0;
+}
+
+/* Track styling for consistency */
+.slider-input::-webkit-slider-runnable-track {
+    background: #000;
+    border: none;
+}
+.slider-input::-moz-range-track {
+    background: #000;
+    border: none;
+}
