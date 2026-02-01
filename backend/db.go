@@ -87,7 +87,8 @@ func InitDB() {
 		player1 TEXT NOT NULL,
 		player2 TEXT NOT NULL,
 		score INT NOT NULL,
-		updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+		updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		UNIQUE(player1, player2)
 	);`
 
 	_, err = db.Exec(createPairScoresTableV2)
@@ -97,6 +98,55 @@ func InitDB() {
 		db = nil
 		return
 	}
+
+	// Migration for existing tables: ensure unique constraint exists for (player1, player2).
+	// The ON CONFLICT clause in SavePairScore requires this constraint.
+	// First, check if the unique index already exists to avoid unnecessary work.
+	var indexExists bool
+	err = db.QueryRow(`
+		SELECT EXISTS (
+			SELECT 1 FROM pg_indexes 
+			WHERE tablename = 'pair_scores' 
+			AND indexname = 'pair_scores_player1_player2_key'
+		)`).Scan(&indexExists)
+	if err != nil {
+		fmt.Printf("Error checking for existing index: %v\n", err)
+		_ = db.Close()
+		db = nil
+		return
+	}
+
+	if !indexExists {
+		// Before creating the unique index, consolidate any duplicate (player1, player2) entries
+		// by keeping only the row with the highest score for each pair.
+		// This handles existing databases that may have duplicate entries from before this constraint.
+		consolidateDuplicatesSQL := `
+			DELETE FROM pair_scores p1
+			USING pair_scores p2
+			WHERE p1.player1 = p2.player1 
+			  AND p1.player2 = p2.player2 
+			  AND (p1.score < p2.score OR (p1.score = p2.score AND p1.id > p2.id))
+		`
+		_, err = db.Exec(consolidateDuplicatesSQL)
+		if err != nil {
+			fmt.Printf("Error consolidating duplicate pair_scores: %v\n", err)
+			_ = db.Close()
+			db = nil
+			return
+		}
+
+		// Now create the unique index - this will succeed since duplicates have been removed
+		addPairScoresUniqueConstraint := `CREATE UNIQUE INDEX IF NOT EXISTS pair_scores_player1_player2_key ON pair_scores (player1, player2);`
+		_, err = db.Exec(addPairScoresUniqueConstraint)
+		if err != nil {
+			fmt.Printf("Error adding unique constraint to pair_scores: %v\n", err)
+			_ = db.Close()
+			db = nil
+			return
+		}
+		fmt.Println("Migrated pair_scores table: consolidated duplicates and added unique constraint")
+	}
+
 	fmt.Println("Database initialized successfully")
 }
 
@@ -120,18 +170,20 @@ func SavePairScore(player1, player2 string, score int) error {
 		return fmt.Errorf("database not initialized")
 	}
 
-    // Ensure alphabetical order for consistency in scoreboard
-    if player1 > player2 {
-        player1, player2 = player2, player1
-    }
+	// Ensure alphabetical order for consistency in scoreboard
+	if player1 > player2 {
+		player1, player2 = player2, player1
+	}
 
-    // We just insert every game score for now, as decided in plan comments (simulated)
-    // Actually, let's just insert.
-	insertSQL := `
+	// Upsert: only store the best score for each pair
+	upsertSQL := `
 		INSERT INTO pair_scores (player1, player2, score, updated_at)
 		VALUES ($1, $2, $3, CURRENT_TIMESTAMP)
+		ON CONFLICT (player1, player2)
+		DO UPDATE SET score = EXCLUDED.score, updated_at = CURRENT_TIMESTAMP
+		WHERE pair_scores.score < EXCLUDED.score
 	`
-	_, err := db.Exec(insertSQL, player1, player2, score)
+	_, err := db.Exec(upsertSQL, player1, player2, score)
 	return err
 }
 
