@@ -98,6 +98,19 @@ func InitDB() {
 		db = nil
 		return
 	}
+
+	// Add unique constraint for existing tables that were created before the constraint was added.
+	// This is idempotent - it will do nothing if the constraint already exists.
+	// The ON CONFLICT clause in SavePairScore requires this constraint.
+	addPairScoresUniqueConstraint := `CREATE UNIQUE INDEX IF NOT EXISTS pair_scores_player1_player2_key ON pair_scores (player1, player2);`
+	_, err = db.Exec(addPairScoresUniqueConstraint)
+	if err != nil {
+		fmt.Printf("Error adding unique constraint to pair_scores: %v\n", err)
+		_ = db.Close()
+		db = nil
+		return
+	}
+
 	fmt.Println("Database initialized successfully")
 }
 
