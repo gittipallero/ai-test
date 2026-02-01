@@ -40,7 +40,7 @@ func NewGame(nicknames []string) *GameState {
 	// Single player default position
 	startPositions := []Position{
 		{X: 9, Y: 15}, // Player 1
-		{X: 10, Y: 15}, // Player 2 (slightly offset)
+		{X: 9, Y: 15}, // Player 2 (same position)
 	}
 
 	for i, nick := range nicknames {
