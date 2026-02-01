@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import GameButton from '../GameButton';
+import GameButton from '../GameButton/GameButton';
 import ScoreTable, { type ScoreTableRow } from './ScoreTable';
 import './ScoreBoard.css';
 
