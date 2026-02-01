@@ -118,6 +118,33 @@
     text-align: right;
 }
 
+.ghost-selector {
+    display: flex;
+    justify-content: center;
+    gap: 5px;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+}
+
+.ghost-selector-label {
+    color: #fff;
+    margin-right: 10px;
+}
+
+.ghost-btn {
+    padding: 5px 10px;
+    cursor: pointer;
+    background-color: #333;
+    color: #fff;
+    border: 1px solid #fff;
+    border-radius: 4px;
+}
+
+.ghost-btn.active {
+    background-color: #ffff00;
+    color: #000;
+}
+
 .back-btn {
     margin-top: 1rem;
 }

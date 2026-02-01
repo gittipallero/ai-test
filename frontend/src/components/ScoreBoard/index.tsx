@@ -67,21 +67,13 @@ const ScoreBoard: React.FC<ScoreBoardProps> = ({ onBack, initialGhostCount = 4 }
         <div className="scoreboard-container">
             <h2 className="scoreboard-title">*** HIGH SCORES ***</h2>
             
-            <div className="ghost-selector" style={{ display: 'flex', justifyContent: 'center', gap: '5px', marginBottom: '10px', flexWrap: 'wrap' }}>
-                <span style={{ color: '#fff', marginRight: '10px' }}>Ghosts:</span>
+            <div className="ghost-selector">
+                <span className="ghost-selector-label">Ghosts:</span>
                 {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(num => (
                     <button 
                         key={num} 
                         className={`ghost-btn ${viewGhostCount === num ? 'active' : ''}`}
                         onClick={() => handleGhostCountChange(num)}
-                        style={{ 
-                            padding: '5px 10px', 
-                            cursor: 'pointer', 
-                            backgroundColor: viewGhostCount === num ? '#ffff00' : '#333',
-                            color: viewGhostCount === num ? '#000' : '#fff',
-                            border: '1px solid #fff',
-                            borderRadius: '4px'
-                        }}
                     >
                         {num}
                     </button>
