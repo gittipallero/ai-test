@@ -10,10 +10,11 @@ type Position struct {
 }
 
 type Ghost struct {
-	ID    int      `json:"id"`
-	Pos   Position `json:"pos"`
-	Dir   Direction `json:"dir"`
-	Color string   `json:"color"`
+	ID      int       `json:"id"`
+	Pos     Position  `json:"pos"`
+	LastPos Position  `json:"-"` // Internal use for collision
+	Dir     Direction `json:"dir"`
+	Color   string    `json:"color"`
 }
 
 // Request/Response types for API
