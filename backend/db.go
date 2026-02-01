@@ -99,16 +99,52 @@ func InitDB() {
 		return
 	}
 
-	// Add unique constraint for existing tables that were created before the constraint was added.
-	// This is idempotent - it will do nothing if the constraint already exists.
+	// Migration for existing tables: ensure unique constraint exists for (player1, player2).
 	// The ON CONFLICT clause in SavePairScore requires this constraint.
-	addPairScoresUniqueConstraint := `CREATE UNIQUE INDEX IF NOT EXISTS pair_scores_player1_player2_key ON pair_scores (player1, player2);`
-	_, err = db.Exec(addPairScoresUniqueConstraint)
+	// First, check if the unique index already exists to avoid unnecessary work.
+	var indexExists bool
+	err = db.QueryRow(`
+		SELECT EXISTS (
+			SELECT 1 FROM pg_indexes 
+			WHERE tablename = 'pair_scores' 
+			AND indexname = 'pair_scores_player1_player2_key'
+		)`).Scan(&indexExists)
 	if err != nil {
-		fmt.Printf("Error adding unique constraint to pair_scores: %v\n", err)
+		fmt.Printf("Error checking for existing index: %v\n", err)
 		_ = db.Close()
 		db = nil
 		return
+	}
+
+	if !indexExists {
+		// Before creating the unique index, consolidate any duplicate (player1, player2) entries
+		// by keeping only the row with the highest score for each pair.
+		// This handles existing databases that may have duplicate entries from before this constraint.
+		consolidateDuplicatesSQL := `
+			DELETE FROM pair_scores p1
+			USING pair_scores p2
+			WHERE p1.player1 = p2.player1 
+			  AND p1.player2 = p2.player2 
+			  AND (p1.score < p2.score OR (p1.score = p2.score AND p1.id > p2.id))
+		`
+		_, err = db.Exec(consolidateDuplicatesSQL)
+		if err != nil {
+			fmt.Printf("Error consolidating duplicate pair_scores: %v\n", err)
+			_ = db.Close()
+			db = nil
+			return
+		}
+
+		// Now create the unique index - this will succeed since duplicates have been removed
+		addPairScoresUniqueConstraint := `CREATE UNIQUE INDEX IF NOT EXISTS pair_scores_player1_player2_key ON pair_scores (player1, player2);`
+		_, err = db.Exec(addPairScoresUniqueConstraint)
+		if err != nil {
+			fmt.Printf("Error adding unique constraint to pair_scores: %v\n", err)
+			_ = db.Close()
+			db = nil
+			return
+		}
+		fmt.Println("Migrated pair_scores table: consolidated duplicates and added unique constraint")
 	}
 
 	fmt.Println("Database initialized successfully")
