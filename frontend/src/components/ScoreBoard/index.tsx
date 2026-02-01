@@ -36,29 +36,28 @@ const ScoreBoard: React.FC<ScoreBoardProps> = ({ onBack, initialGhostCount = 4, 
 
     useEffect(() => {
         setLoading(true);
-        const promises = [];
 
-        if (activeMode === 'single') {
-            promises.push(fetch(`/api/scoreboard?ghosts=${viewGhostCount}`).then(res => res.json()));
-        } else if (activeMode === 'pair') {
-            promises.push(fetch('/api/scoreboard/pair').then(res => res.json()));
-        }
-
-        Promise.all(promises)
-            .then((results) => {
+        const fetchScores = async () => {
+            try {
                 if (activeMode === 'single') {
-                    setSingleScores(results[0] || []);
+                    const response = await fetch(`/api/scoreboard?ghosts=${viewGhostCount}`);
+                    const data = await response.json();
+                    setSingleScores(data || []);
                 } else if (activeMode === 'pair') {
-                    setPairScores(results[0] || []);
+                    const response = await fetch('/api/scoreboard/pair');
+                    const data = await response.json();
+                    setPairScores(data || []);
                 }
                 setError(null);
-                setLoading(false);
-            })
-            .catch(err => {
+            } catch (err) {
                 console.error('Scoreboard error:', err);
                 setError('Failed to load scoreboards');
+            } finally {
                 setLoading(false);
-            });
+            }
+        };
+
+        fetchScores();
     }, [viewGhostCount, activeMode]);
 
     const singleRows: ScoreTableRow[] = singleScores.map((entry, index) => ({
