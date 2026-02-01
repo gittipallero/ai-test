@@ -25,6 +25,47 @@ func RequireDB(w http.ResponseWriter) bool {
 
 func InitDB() {
 	var err error
+
+	if err = connectDB(); err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	if err = createUsersTable(); err != nil {
+		fmt.Printf("Error creating users table: %v\n", err)
+		closeDB()
+		return
+	}
+
+	if err = createScoresTable(); err != nil {
+		fmt.Printf("Error creating scores table: %v\n", err)
+		closeDB()
+		return
+	}
+
+	if err = createPairScoresTable(); err != nil {
+		fmt.Printf("Error creating pair_scores table: %v\n", err)
+		closeDB()
+		return
+	}
+
+	if err = migratePairScores(); err != nil {
+		fmt.Printf("Error migrating pair_scores table: %v\n", err)
+		closeDB()
+		return
+	}
+
+	fmt.Println("Database initialized successfully")
+}
+
+func closeDB() {
+	if db != nil {
+		_ = db.Close()
+		db = nil
+	}
+}
+
+func connectDB() error {
 	sslMode := os.Getenv("DB_SSLMODE")
 	if sslMode == "" {
 		sslMode = "require" // Default to require for security
@@ -35,53 +76,46 @@ func InitDB() {
 
 	// Fallback for local testing if env vars not set
 	if os.Getenv("DB_HOST") == "" {
-		fmt.Println("Warning: DB_HOST not set, skipping DB init")
-		db = nil
-		return
+		closeDB() // Reset any existing connection when DB is not configured
+		return fmt.Errorf("Warning: DB_HOST not set, skipping DB init")
 	}
 
+	var err error
 	db, err = sql.Open("postgres", connStr)
 	if err != nil {
-		fmt.Printf("Error connecting to DB: %v\n", err)
-		db = nil
-		return
+		return fmt.Errorf("Error connecting to DB: %v", err)
 	}
 
 	err = db.Ping()
 	if err != nil {
-		fmt.Printf("Error pinging DB: %v\n", err)
-		_ = db.Close()
-		db = nil
-		return
+		closeDB()
+		return fmt.Errorf("Error pinging DB: %v", err)
 	}
+	return nil
+}
 
+func createUsersTable() error {
 	createUsersTableSQL := `CREATE TABLE IF NOT EXISTS users (
 		id SERIAL PRIMARY KEY,
 		nickname TEXT UNIQUE NOT NULL,
 		password_hash TEXT NOT NULL
 	);`
-	_, err = db.Exec(createUsersTableSQL)
-	if err != nil {
-		fmt.Printf("Error creating users table: %v\n", err)
-		_ = db.Close()
-		db = nil
-		return
-	}
+	_, err := db.Exec(createUsersTableSQL)
+	return err
+}
 
+func createScoresTable() error {
 	createScoresTableSQL := `CREATE TABLE IF NOT EXISTS scores (
 		id SERIAL PRIMARY KEY,
 		nickname TEXT UNIQUE NOT NULL,
 		score INT NOT NULL,
 		updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 	);`
-	_, err = db.Exec(createScoresTableSQL)
-	if err != nil {
-		fmt.Printf("Error creating scores table: %v\n", err)
-		_ = db.Close()
-		db = nil
-		return
-	}
+	_, err := db.Exec(createScoresTableSQL)
+	return err
+}
 
+func createPairScoresTable() error {
 	createPairScoresTableV2 := `CREATE TABLE IF NOT EXISTS pair_scores (
 		id SERIAL PRIMARY KEY,
 		player1 TEXT NOT NULL,
@@ -91,29 +125,23 @@ func InitDB() {
 		UNIQUE(player1, player2)
 	);`
 
-	_, err = db.Exec(createPairScoresTableV2)
-	if err != nil {
-		fmt.Printf("Error creating pair_scores table: %v\n", err)
-		_ = db.Close()
-		db = nil
-		return
-	}
+	_, err := db.Exec(createPairScoresTableV2)
+	return err
+}
 
+func migratePairScores() error {
 	// Migration for existing tables: ensure unique constraint exists for (player1, player2).
 	// The ON CONFLICT clause in SavePairScore requires this constraint.
 	// First, check if the unique index already exists to avoid unnecessary work.
 	var indexExists bool
-	err = db.QueryRow(`
+	err := db.QueryRow(`
 		SELECT EXISTS (
 			SELECT 1 FROM pg_indexes 
 			WHERE tablename = 'pair_scores' 
 			AND indexname = 'pair_scores_player1_player2_key'
 		)`).Scan(&indexExists)
 	if err != nil {
-		fmt.Printf("Error checking for existing index: %v\n", err)
-		_ = db.Close()
-		db = nil
-		return
+		return fmt.Errorf("checking for existing index: %w", err)
 	}
 
 	if !indexExists {
@@ -129,25 +157,18 @@ func InitDB() {
 		`
 		_, err = db.Exec(consolidateDuplicatesSQL)
 		if err != nil {
-			fmt.Printf("Error consolidating duplicate pair_scores: %v\n", err)
-			_ = db.Close()
-			db = nil
-			return
+			return fmt.Errorf("consolidating duplicate pair_scores: %w", err)
 		}
 
 		// Now create the unique index - this will succeed since duplicates have been removed
 		addPairScoresUniqueConstraint := `CREATE UNIQUE INDEX IF NOT EXISTS pair_scores_player1_player2_key ON pair_scores (player1, player2);`
 		_, err = db.Exec(addPairScoresUniqueConstraint)
 		if err != nil {
-			fmt.Printf("Error adding unique constraint to pair_scores: %v\n", err)
-			_ = db.Close()
-			db = nil
-			return
+			return fmt.Errorf("adding unique constraint to pair_scores: %w", err)
 		}
 		fmt.Println("Migrated pair_scores table: consolidated duplicates and added unique constraint")
 	}
-
-	fmt.Println("Database initialized successfully")
+	return nil
 }
 
 func SaveScore(nickname string, score int) error {
