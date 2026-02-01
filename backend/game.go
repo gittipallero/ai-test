@@ -141,8 +141,8 @@ func (g *GameState) handleTeleport(pos Position) Position {
 func (g *GameState) handleEating(pos Position) {
 	// Eat Dot
 	cell := g.Grid[pos.Y][pos.X]
-	if cell == 2 {
-		g.Grid[pos.Y][pos.X] = 0
+	if cell == CellDot {
+		g.Grid[pos.Y][pos.X] = CellEmpty
 
 		// Calculate time-dependent bonus
 		now := time.Now().UnixMilli()
@@ -158,8 +158,8 @@ func (g *GameState) handleEating(pos Position) {
 		g.LastEatTime = now
 	}
 	// Eat Power
-	if cell == 3 {
-		g.Grid[pos.Y][pos.X] = 0
+	if cell == CellPower {
+		g.Grid[pos.Y][pos.X] = CellEmpty
 		g.Score += 50
 		g.PowerModeTime = 5000
 	}
@@ -268,7 +268,7 @@ func (g *GameState) canMove(pos Position, dir Direction) bool {
 	if next.X < 0 || next.X >= Cols {
 		return true // Tunnel
 	}
-	return g.Grid[next.Y][next.X] != 1
+	return g.Grid[next.Y][next.X] != CellWall
 }
 
 func (g *GameState) getNextPos(pos Position, dir Direction) Position {

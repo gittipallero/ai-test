@@ -6,6 +6,14 @@ const (
 )
 
 const (
+	CellEmpty = 0
+	CellWall  = 1
+	CellDot   = 2
+	CellPower = 3
+	CellGate  = 9
+)
+
+const (
 	DirUp    Direction = "UP"
 	DirDown  Direction = "DOWN"
 	DirLeft  Direction = "LEFT"
