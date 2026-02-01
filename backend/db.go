@@ -76,6 +76,7 @@ func connectDB() error {
 
 	// Fallback for local testing if env vars not set
 	if os.Getenv("DB_HOST") == "" {
+		closeDB() // Reset any existing connection when DB is not configured
 		return fmt.Errorf("Warning: DB_HOST not set, skipping DB init")
 	}
 
