@@ -84,7 +84,11 @@ func onApiWs(lobby *Lobby) http.HandlerFunc {
 				case "input":
 					handleGameInput(client, msg)
 				case "start_single":
-					startSinglePlayerGame(client)
+					ghostCount := 4
+					if countFloat, ok := msg["ghostCount"].(float64); ok {
+						ghostCount = int(countFloat)
+					}
+					startSinglePlayerGame(client, ghostCount)
 				case "update_ghost_count":
 					if countFloat, ok := msg["count"].(float64); ok {
 						if game := client.GetGame(); game != nil {
@@ -299,15 +303,14 @@ func handleGameInput(client *Client, msg map[string]interface{}) {
 	}
 }
 
-func startSinglePlayerGame(client *Client) {
+func startSinglePlayerGame(client *Client, ghostCount int) {
 	// Similar to old main loop but running in goroutine per client (or associated with client)
 	// Actually, client.Game stores the state.
 
 	// If already in game, stop it?
 	// Let's assume start_single starts a new one.
 
-	// Default to 4 ghosts
-	game := NewGame([]string{client.Nickname}, 4)
+	game := NewGame([]string{client.Nickname}, ghostCount)
 	client.SetGame(game)
 
 	// Start Ticker Loop for this single player game

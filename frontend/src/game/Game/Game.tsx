@@ -52,7 +52,9 @@ const Game: React.FC<GameProps> = ({ onLogout, onShowScoreboard, onOnlineCountCh
         
         socket.onopen = () => {
             console.log('Connected to game server');
-            socket.send(JSON.stringify({ type: 'start_single' }));
+            // Use current ghostCount state if available, but here we are in initial connection
+            // We can default to 4 or rely on default state since we haven't rendered slider yet
+            socket.send(JSON.stringify({ type: 'start_single', ghostCount: 4 }));
             setGameMode('single');
         };
 
@@ -135,7 +137,7 @@ const Game: React.FC<GameProps> = ({ onLogout, onShowScoreboard, onOnlineCountCh
              if (gameMode === 'pair') {
                 ws.current.send(JSON.stringify({ type: 'join_pair' }));
              } else {
-                ws.current.send(JSON.stringify({ type: 'start_single' }));
+                ws.current.send(JSON.stringify({ type: 'start_single', ghostCount }));
              }
          }
     };
