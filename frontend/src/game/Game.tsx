@@ -12,9 +12,10 @@ interface GameProps {
     onShowScoreboard: () => void;
     onOnlineCountChange: (count: number) => void;
     username: string;
+    authToken: string;
 }
 
-const Game: React.FC<GameProps> = ({ onLogout, onShowScoreboard, onOnlineCountChange, username }) => {
+const Game: React.FC<GameProps> = ({ onLogout, onShowScoreboard, onOnlineCountChange, username, authToken }) => {
     const [gameState, setGameState] = useState<GameState | null>(null);
     const [waiting, setWaiting] = useState(false);
     const [lobbyStats, setLobbyStats] = useState<LobbyStats>({ online_count: 0 });
@@ -42,10 +43,10 @@ const Game: React.FC<GameProps> = ({ onLogout, onShowScoreboard, onOnlineCountCh
     }, []);
 
     useEffect(() => {
-        // Connect to WebSocket
+        // Connect to WebSocket with session token for authentication
         const wsProtocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
         const wsHost = window.location.host;
-        const wsUrl = `${wsProtocol}://${wsHost}/api/ws?nickname=${encodeURIComponent(username)}`;
+        const wsUrl = `${wsProtocol}://${wsHost}/api/ws?token=${encodeURIComponent(authToken)}`;
         const socket = new WebSocket(wsUrl);
         
         socket.onopen = () => {
@@ -91,7 +92,7 @@ const Game: React.FC<GameProps> = ({ onLogout, onShowScoreboard, onOnlineCountCh
             }
             socket.close();
         };
-    }, [username, onOnlineCountChange]);
+    }, [authToken, onOnlineCountChange]);
 
     const handleDirectionInput = useCallback((dir: Direction) => {
         const currentSocket = ws.current;

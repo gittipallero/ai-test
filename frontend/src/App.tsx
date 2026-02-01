@@ -5,6 +5,7 @@ import ScoreBoard from './components/ScoreBoard'
 import './App.css'
 
 const USERNAME_STORAGE_KEY = 'pacman.username'
+const TOKEN_STORAGE_KEY = 'pacman.token'
 
 type ViewState = 'game' | 'scoreboard'
 
@@ -14,17 +15,24 @@ function App() {
     const trimmed = stored?.trim()
     return trimmed || null
   })
+  const [authToken, setAuthToken] = useState<string | null>(() => {
+    return sessionStorage.getItem(TOKEN_STORAGE_KEY)
+  })
   const [currentView, setCurrentView] = useState<ViewState>('game')
   const [onlineCount, setOnlineCount] = useState<number>(0)
 
-  const handleLoginSuccess = (nickname: string) => {
+  const handleLoginSuccess = (nickname: string, token: string) => {
     sessionStorage.setItem(USERNAME_STORAGE_KEY, nickname)
+    sessionStorage.setItem(TOKEN_STORAGE_KEY, token)
     setUsername(nickname)
+    setAuthToken(token)
   }
 
   const handleLogout = () => {
     sessionStorage.removeItem(USERNAME_STORAGE_KEY)
+    sessionStorage.removeItem(TOKEN_STORAGE_KEY)
     setUsername(null)
+    setAuthToken(null)
     setCurrentView('game')
     setOnlineCount(0)
   }
@@ -37,17 +45,19 @@ function App() {
     setCurrentView('game')
   }
 
+  const isAuthenticated = username && authToken
+
   return (
     <>
       <header>
         <h1>*** PACMAN C64 ***</h1>
-        <p>{username ? 'READY.' : 'AUTHENTICATION REQUIRED.'}</p>
-        {username && <p>PLAYER: {username}</p>}
-        {username && <p>ONLINE: {onlineCount}</p>}
+        <p>{isAuthenticated ? 'READY.' : 'AUTHENTICATION REQUIRED.'}</p>
+        {isAuthenticated && <p>PLAYER: {username}</p>}
+        {isAuthenticated && <p>ONLINE: {onlineCount}</p>}
       </header>
       <main>
         <div className="game-container">
-          {!username ? (
+          {!isAuthenticated ? (
             <AuthForm onLoginSuccess={handleLoginSuccess} />
           ) : currentView === 'scoreboard' ? (
             <ScoreBoard onBack={handleBackToGame} />
@@ -57,6 +67,7 @@ function App() {
               onShowScoreboard={handleShowScoreboard}
               onOnlineCountChange={setOnlineCount}
               username={username}
+              authToken={authToken}
             />
           )}
         </div>

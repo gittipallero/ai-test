@@ -12,6 +12,7 @@ type PlayerState struct {
 	Dir      Direction `json:"dir"` // Current movement direction
 	NextDir  Direction `json:"nextDir"` // Buffered next direction
 	Alive    bool     `json:"alive"`
+	LastPos Position `json:"-"` // Internal use for collision
 }
 
 type GameState struct {
@@ -118,6 +119,8 @@ func (g *GameState) movePlayer(p *PlayerState) {
 		p.Dir = p.NextDir
 	}
 
+	p.LastPos = p.Pos // Update last pos before moving
+
 	if currentDir != "" && g.canMove(p.Pos, currentDir) {
 		newPos := g.getNextPos(p.Pos, currentDir)
 		newPos = g.handleTeleport(newPos)
@@ -199,6 +202,8 @@ func (g *GameState) moveOneGhost(ghost *Ghost) {
 		}
 	}
 
+	ghost.LastPos = ghost.Pos // Update last pos before moving
+
 	if nextDir != "" && g.canMove(ghost.Pos, nextDir) {
 		newPos := g.getNextPos(ghost.Pos, nextDir)
 		newPos = g.handleTeleport(newPos)
@@ -220,20 +225,26 @@ func (g *GameState) getValidGhostDirs(ghost *Ghost) []Direction {
 
 func (g *GameState) checkCollisions() {
 	for i, ghost := range g.Ghosts {
-        for _, p := range g.Players {
-            if !p.Alive {
-                continue
-            }
-            if ghost.Pos == p.Pos {
-                // Collision
-                if g.PowerModeTime > 0 {
-                    g.Score += 200
-                    g.Ghosts[i].Pos = Position{X: 9, Y: 8} // Send home
-                } else {
-                    p.Alive = false // Kill player
-                }
-            }
-        }
+		for _, p := range g.Players {
+			if !p.Alive {
+				continue
+			}
+			
+			// Direct collision or Swap collision
+			// Swap collision: Ghost is at Player's old pos, Player is at Ghost's old pos
+			collision := (ghost.Pos == p.Pos) || (ghost.Pos == p.LastPos && ghost.LastPos == p.Pos)
+
+			if collision {
+				// Collision
+				if g.PowerModeTime > 0 {
+					g.Score += 200
+					g.Ghosts[i].Pos = Position{X: 9, Y: 8} // Send home
+					g.Ghosts[i].LastPos = Position{X: 9, Y: 8}
+				} else {
+					p.Alive = false // Kill player
+				}
+			}
+		}
 	}
     
     // Check if any players alive

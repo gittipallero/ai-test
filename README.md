@@ -80,20 +80,25 @@ A classic Pacman game clone with a **Commodore 64 retro aesthetic**, built with 
    docker-compose up -d
    ```
 
-2. **Start the backend:**
+2. **Create environment file (first time only):**
    ```bash
-   cd backend
-   DB_HOST=localhost DB_PORT=5434 DB_USER=postgres DB_PASSWORD=password DB_NAME=pacmangame DB_SSLMODE=disable go run main.go
+   cp .env.example .env
+   # Edit .env with your settings if needed
    ```
 
-3. **Start the frontend (in a new terminal):**
+3. **Start the backend:**
+   ```bash
+   make run-backend-dev
+   ```
+
+4. **Start the frontend (in a new terminal):**
    ```bash
    cd frontend
    npm install
    npm run dev
    ```
 
-4. Open http://localhost:5173 in your browser
+5. Open http://localhost:5173 in your browser
 
 ### Using the Start Script
 
@@ -180,15 +185,49 @@ The application uses PostgreSQL for user authentication.
 └─────────────────┘     └──────────────────┘     └────────────────┘
 ```
 
+## 🔒 Security
+
+### Authentication
+- User passwords are hashed with bcrypt
+- Session tokens are issued on login/signup
+- WebSocket connections require valid session tokens
+
+### WebSocket Security
+- Origin validation using `ALLOWED_ORIGINS` environment variable
+- Session-based authentication prevents impersonation
+- Tokens expire after 24 hours
+
+### Environment Variables
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `DB_HOST` | PostgreSQL host | (required) |
+| `DB_PORT` | PostgreSQL port | 5432 |
+| `DB_USER` | Database user | (required) |
+| `DB_PASSWORD` | Database password | (required) |
+| `DB_NAME` | Database name | (required) |
+| `DB_SSLMODE` | SSL mode | require |
+| `ALLOWED_ORIGINS` | Comma-separated allowed origins | localhost URLs |
+
 ## 📦 Deployment
 
 ### Azure Infrastructure
 Bicep templates for Azure deployment are in the `infra/` directory.
 
+**GitHub Variables for deployment:**
+- `AZURE_RESOURCE_GROUP` - Resource group name
+- `AZURE_LOCATION` - Azure region (default: swedencentral)
+- `ALLOWED_ORIGINS` - (Optional) Override allowed origins for WebSocket CORS
+
 ### Docker
 ```bash
 docker build -t pacman-game .
-docker run -p 6060:6060 pacman-game
+docker run -p 6060:6060 \
+  -e DB_HOST=your-db-host \
+  -e DB_USER=your-user \
+  -e DB_PASSWORD=your-password \
+  -e DB_NAME=pacmangame \
+  -e ALLOWED_ORIGINS=https://your-domain.com \
+  pacman-game
 ```
 
 ## 📄 License
