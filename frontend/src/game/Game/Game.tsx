@@ -142,9 +142,6 @@ const Game: React.FC<GameProps> = ({ onLogout, onShowScoreboard, onOnlineCountCh
              }
          }
     };
-    
-    // Local state for ghostCount removed, using props instead
-
 
     if (waiting) {
         return (
