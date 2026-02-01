@@ -89,14 +89,17 @@ func onApiWs(lobby *Lobby) http.HandlerFunc {
 						ghostCount = int(countFloat)
 					}
 					startSinglePlayerGame(client, ghostCount)
-				case "update_ghost_count":
-					if countFloat, ok := msg["count"].(float64); ok {
-						if game := client.GetGame(); game != nil {
-							game.UpdateGhostCount(int(countFloat))
-							// Broadcast updated gamestate to client immediately
-							client.WriteJSON(game)
-						}
+			case "update_ghost_count":
+				if countFloat, ok := msg["count"].(float64); ok {
+					if game := client.GetGame(); game != nil {
+						game.UpdateGhostCount(int(countFloat))
+						// Broadcast updated gamestate to client immediately
+						// Hold read lock to prevent data race with concurrent game.Update()
+						game.mu.RLock()
+						client.WriteJSON(game)
+						game.mu.RUnlock()
 					}
+				}
 				}
 			}
 		}()
