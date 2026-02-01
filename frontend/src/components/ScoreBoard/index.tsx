@@ -26,8 +26,12 @@ const ScoreBoard: React.FC<ScoreBoardProps> = ({ onBack, initialGhostCount = 4 }
     const [error, setError] = useState<string | null>(null);
     const [viewGhostCount, setViewGhostCount] = useState(initialGhostCount);
 
-    useEffect(() => {
+    const handleGhostCountChange = (num: number) => {
         setLoading(true);
+        setViewGhostCount(num);
+    };
+
+    useEffect(() => {
         Promise.all([
             fetch(`/api/scoreboard?ghosts=${viewGhostCount}`).then(res => res.json()),
             fetch('/api/scoreboard/pair').then(res => res.json())
@@ -69,7 +73,7 @@ const ScoreBoard: React.FC<ScoreBoardProps> = ({ onBack, initialGhostCount = 4 }
                     <button 
                         key={num} 
                         className={`ghost-btn ${viewGhostCount === num ? 'active' : ''}`}
-                        onClick={() => setViewGhostCount(num)}
+                        onClick={() => handleGhostCountChange(num)}
                         style={{ 
                             padding: '5px 10px', 
                             cursor: 'pointer', 
