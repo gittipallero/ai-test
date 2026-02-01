@@ -19,7 +19,7 @@ var InitialMap = [Rows][Cols]int{
 	{CellWall , CellDot  , CellWall , CellWall , CellDot  , CellWall , CellWall , CellWall , CellDot  , CellWall , CellDot  , CellWall , CellWall , CellWall , CellDot  , CellWall , CellWall , CellDot  , CellWall },
 	{CellWall , CellDot  , CellDot  , CellWall , CellDot  , CellDot  , CellDot  , CellDot  , CellDot  , CellEmpty, CellDot  , CellDot  , CellDot  , CellDot  , CellDot  , CellWall , CellDot  , CellDot  , CellWall },
 	{CellWall , CellWall , CellDot  , CellWall , CellDot  , CellWall , CellDot  , CellWall , CellWall , CellWall , CellWall , CellWall , CellDot  , CellWall , CellDot  , CellWall , CellDot  , CellWall , CellWall },
-	{CellWall , CellDot  , CellDot  , CellDot  , CellDot  , CellWall , CellDot  , CellDot  , CellDot  , CellWall , CellDot  , CellDot  , CellDot  , CellWall , CellDot  , CellDot  , CellDot  , CellDot  , CellWall },
+	{CellWall , CellPower, CellDot  , CellDot  , CellDot  , CellWall , CellDot  , CellDot  , CellDot  , CellWall , CellDot  , CellDot  , CellDot  , CellWall , CellDot  , CellDot  , CellDot  , CellPower, CellWall },
 	{CellWall , CellWall , CellWall , CellWall , CellWall , CellWall , CellWall , CellWall , CellWall , CellWall , CellWall , CellWall , CellWall , CellWall , CellWall , CellWall , CellWall , CellWall , CellWall },
 	{CellWall , CellWall , CellWall , CellWall , CellWall , CellWall , CellWall , CellWall , CellWall , CellWall , CellWall , CellWall , CellWall , CellWall , CellWall , CellWall , CellWall , CellWall , CellWall },
 }
