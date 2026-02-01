@@ -10,7 +10,7 @@ import './Game.css';
 
 interface GameProps {
     onLogout: () => void;
-    onShowScoreboard: (ghostCount?: number) => void;
+    onShowScoreboard: (ghostCount?: number, mode?: GameMode) => void;
     onOnlineCountChange: (count: number) => void;
     username: string;
     authToken: string;
@@ -209,7 +209,7 @@ const Game: React.FC<GameProps> = ({ onLogout, onShowScoreboard, onOnlineCountCh
                     <GameOverDialog 
                         onRestart={handleRestart} 
                         onLogout={onLogout}
-                        onShowScoreboard={() => onShowScoreboard(ghostCount)}
+                        onShowScoreboard={() => onShowScoreboard(ghostCount, gameMode)}
                         onStartPairGame={handleStartPairGame}
                         showPairButton={lobbyStats.online_count > 1}
                         score={score}
