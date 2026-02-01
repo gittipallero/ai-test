@@ -23,6 +23,7 @@ function App() {
   const [currentView, setCurrentView] = useState<ViewState>('game')
   const [onlineCount, setOnlineCount] = useState<number>(0)
   const [ghostCount, setGhostCount] = useState<number>(4)
+  const [scoreboardMode, setScoreboardMode] = useState<GameMode>('single')
 
   const handleLoginSuccess = (nickname: string, token: string) => {
     sessionStorage.setItem(USERNAME_STORAGE_KEY, nickname)
@@ -39,8 +40,6 @@ function App() {
     setCurrentView('game')
     setOnlineCount(0)
   }
-
-  const [scoreboardMode, setScoreboardMode] = useState<GameMode>('single')
 
   const handleShowScoreboard = (count?: number, mode?: GameMode) => {
     if (count) {
