@@ -59,8 +59,12 @@ func NewGame(nicknames []string, ghostCount int) *GameState {
 		}
 	}
 
-	if ghostCount <= 0 {
+	// Clamp ghostCount to valid range (1-10) to prevent DoS via massive slice allocation
+	if ghostCount < 1 {
 		ghostCount = 4
+	}
+	if ghostCount > 10 {
+		ghostCount = 10
 	}
 
 	game := &GameState{
