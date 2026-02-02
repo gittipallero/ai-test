@@ -221,6 +221,17 @@ func (l *Lobby) StartPairGame(p1, p2 *Client) {
 func (l *Lobby) broadcastToPair(p1, p2 *Client, message interface{}) error {
 	err1 := p1.WriteJSON(message)
 	err2 := p2.WriteJSON(message)
+	if err1 != nil && err2 != nil {
+		err1IsBuffer := errors.Is(err1, errSendBufferFull)
+		err2IsBuffer := errors.Is(err2, errSendBufferFull)
+		if err1IsBuffer && !err2IsBuffer {
+			return err2
+		}
+		if err2IsBuffer && !err1IsBuffer {
+			return err1
+		}
+		return err1
+	}
 	if err1 != nil {
 		return err1
 	}
