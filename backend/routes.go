@@ -125,7 +125,7 @@ func onApiScore(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Using ghost count 4 as default/legacy if not provided in JSON or struct yet, 
+	// Using ghost count 4 as default/legacy if not provided in JSON or struct yet,
 	// though standard request doesn't have it yet. Will update struct later.
 	// For now, assuming default 4 for legacy endpoint use, or we add field to struct.
 	if err := db.SaveScore(req.Nickname, req.Score, 4); err != nil {
@@ -147,7 +147,7 @@ func onApiScoreboard(w http.ResponseWriter, r *http.Request) {
 	if !db.RequireDB(w) {
 		return
 	}
-	
+
 	ghosts := 4
 	// Allow query param ?ghosts=N
 	if gStr := r.URL.Query().Get("ghosts"); gStr != "" {
@@ -349,13 +349,13 @@ func startSinglePlayerGame(client *Client, ghostCount int) {
 			score := game.Score
 			game.mu.RUnlock()
 
-			if err != nil {
+			if err != nil && !errors.Is(err, errSendBufferFull) {
 				break
 			}
 
 			if gameOver {
 				// Save score
-				// Save score with ghost count from game state. 
+				// Save score with ghost count from game state.
 				// We need to access game.GhostCount.
 				if err := db.SaveScore(client.Nickname, score, game.GhostCount); err != nil {
 					fmt.Println("Failed to save score:", err)

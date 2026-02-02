@@ -123,7 +123,7 @@ func (c *Client) writePump() {
 			if err := c.Conn.WriteMessage(websocket.PingMessage, nil); err != nil {
 				return
 			}
-		
+
 		case <-c.stopCh:
 			return
 		}
@@ -241,6 +241,9 @@ func (l *Lobby) handleGameTick(game *GameState, p1, p2 *Client) bool {
 	game.mu.RUnlock()
 
 	if err != nil {
+		if errors.Is(err, errSendBufferFull) {
+			return true
+		}
 		log.Println("Error writing to client in pair game, ending game")
 		game.mu.Lock()
 		game.GameOver = true // Stop updates
@@ -282,7 +285,7 @@ func (l *Lobby) BroadcastPlayerCount() {
 	defer l.mu.Unlock()
 
 	count := len(l.clients)
-	
+
 	msg := map[string]interface{}{
 		"type":         "lobby_stats",
 		"online_count": count,
