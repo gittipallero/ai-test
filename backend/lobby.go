@@ -314,8 +314,8 @@ func (l *Lobby) onClientUnregistered(client *Client) {
 	l.mu.Lock()
 	if _, ok := l.clients[client]; ok {
 		delete(l.clients, client)
-		close(client.Send)
 		close(client.stopCh) // Signal pump to stop
+		close(client.Send)
 	}
 	// Remove from waiting list if present
 	for i, c := range l.waiting {
