@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"log"
 	"sync"
 	"time"
@@ -42,22 +43,42 @@ type Lobby struct {
 	mu         sync.Mutex
 }
 
-func (c *Client) WriteJSON(message interface{}) error {
-	b, err := json.Marshal(message)
-	if err != nil {
-		return err
+var (
+	errClientDisconnected = errors.New("client disconnected")
+	errSendBufferFull     = errors.New("client send buffer full")
+)
+
+func (c *Client) WriteJSON(message interface{}) (err error) {
+	payload, marshalErr := json.Marshal(message)
+	if marshalErr != nil {
+		return marshalErr
+	}
+
+	defer func() {
+		if r := recover(); r != nil {
+			err = errClientDisconnected
+		}
+	}()
+
+	select {
+	case <-c.stopCh:
+		return errClientDisconnected
+	default:
 	}
 
 	select {
-	case c.Send <- b:
-		return nil
+	case c.Send <- payload:
+		select {
+		case <-c.stopCh:
+			return errClientDisconnected
+		default:
+			return nil
+		}
 	case <-c.stopCh:
-		return nil // Client disconnected, ignore
+		return errClientDisconnected
 	default:
-		// Buffer full, drop message or disconnect? 
-		// For now, let's try to send non-blocking or just return error if full.
-		// Actually, in a game, dropping a frame is better than blocking logic.
-		return nil
+		// Buffer full; let callers decide how to handle backpressure.
+		return errSendBufferFull
 	}
 }
 
