@@ -1,6 +1,8 @@
 package main
 
 import (
+	"encoding/json"
+	"errors"
 	"log"
 	"sync"
 	"time"
@@ -16,7 +18,7 @@ type Client struct {
 	Lobby    *Lobby
 	mu       sync.RWMutex
 	Game     *GameState // Nil if in lobby/waiting; guarded by mu
-	writeMu  sync.Mutex
+	stopCh   chan struct{}
 }
 
 func (c *Client) GetGame() *GameState {
@@ -38,14 +40,94 @@ type Lobby struct {
 	games      map[*GameState]bool
 	register   chan *Client
 	unregister chan *Client
-	broadcast  chan []byte
 	mu         sync.Mutex
 }
 
-func (c *Client) WriteJSON(message interface{}) error {
-	c.writeMu.Lock()
-	defer c.writeMu.Unlock()
-	return c.Conn.WriteJSON(message)
+var (
+	errClientDisconnected = errors.New("client disconnected")
+	errSendBufferFull     = errors.New("client send buffer full")
+)
+
+func (c *Client) WriteJSON(message interface{}) (err error) {
+	payload, marshalErr := json.Marshal(message)
+	if marshalErr != nil {
+		return marshalErr
+	}
+
+	defer func() {
+		if r := recover(); r != nil {
+			err = errClientDisconnected
+		}
+	}()
+
+	select {
+	case <-c.stopCh:
+		return errClientDisconnected
+	default:
+	}
+
+	select {
+	case c.Send <- payload:
+		select {
+		case <-c.stopCh:
+			return errClientDisconnected
+		default:
+			return nil
+		}
+	case <-c.stopCh:
+		return errClientDisconnected
+	default:
+		// Buffer full; let callers decide how to handle backpressure.
+		return errSendBufferFull
+	}
+}
+
+// writePump pumps messages from the hub to the websocket connection.
+// An application runs writePump in a per-connection goroutine.
+func (c *Client) writePump() {
+	ticker := time.NewTicker(50 * time.Second) // Ping ticker
+	defer func() {
+		ticker.Stop()
+		c.Conn.Close()
+	}()
+
+	for {
+		select {
+		case message, ok := <-c.Send:
+			c.Conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
+			if !ok {
+				// The hub closed the channel.
+				c.Conn.WriteMessage(websocket.CloseMessage, []byte{})
+				return
+			}
+
+			w, err := c.Conn.NextWriter(websocket.TextMessage)
+			if err != nil {
+				return
+			}
+			w.Write(message)
+
+			// Add queued chat messages to the current websocket message.
+			n := len(c.Send)
+			for i := 0; i < n; i++ {
+				w.Write([]byte{'\n'})
+				w.Write(<-c.Send)
+			}
+
+			if err := w.Close(); err != nil {
+				return
+			}
+
+		case <-ticker.C:
+			c.Conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
+			if err := c.Conn.WriteMessage(websocket.PingMessage, nil); err != nil {
+				return
+			}
+
+		case <-c.stopCh:
+			return
+		}
+	}
 }
 
 func NewLobby() *Lobby {
@@ -55,7 +137,6 @@ func NewLobby() *Lobby {
 		games:      make(map[*GameState]bool),
 		register:   make(chan *Client),
 		unregister: make(chan *Client),
-		broadcast:  make(chan []byte),
 	}
 }
 
@@ -67,18 +148,6 @@ func (l *Lobby) Run() {
 
 		case client := <-l.unregister:
 			l.onClientUnregistered(client)
-
-		case message := <-l.broadcast:
-			l.mu.Lock()
-			for client := range l.clients {
-				select {
-				case client.Send <- message:
-				default:
-					close(client.Send)
-					delete(l.clients, client)
-				}
-			}
-			l.mu.Unlock()
 		}
 	}
 }
@@ -110,12 +179,11 @@ func (l *Lobby) JoinPairQueue(client *Client) {
 		msg := map[string]interface{}{
 			"type": "waiting",
 		}
-		// Use a goroutine to avoid blocking the lock
-		go func() {
-			if err := client.WriteJSON(msg); err != nil {
-				log.Printf("Error sending wait message: %v", err)
-			}
-		}()
+		// Use a goroutine to avoid blocking the lock - though WriteJSON is now non-blocking(ish)
+		// With channel, it IS safe to call directly if channel has buffer.
+		if err := client.WriteJSON(msg); err != nil {
+			log.Printf("Error sending wait message: %v", err)
+		}
 	}
 }
 
@@ -153,6 +221,17 @@ func (l *Lobby) StartPairGame(p1, p2 *Client) {
 func (l *Lobby) broadcastToPair(p1, p2 *Client, message interface{}) error {
 	err1 := p1.WriteJSON(message)
 	err2 := p2.WriteJSON(message)
+	if err1 != nil && err2 != nil {
+		err1IsBuffer := errors.Is(err1, errSendBufferFull)
+		err2IsBuffer := errors.Is(err2, errSendBufferFull)
+		if err1IsBuffer && !err2IsBuffer {
+			return err2
+		}
+		if err2IsBuffer && !err1IsBuffer {
+			return err1
+		}
+		return err1
+	}
 	if err1 != nil {
 		return err1
 	}
@@ -173,6 +252,9 @@ func (l *Lobby) handleGameTick(game *GameState, p1, p2 *Client) bool {
 	game.mu.RUnlock()
 
 	if err != nil {
+		if errors.Is(err, errSendBufferFull) {
+			return true
+		}
 		log.Println("Error writing to client in pair game, ending game")
 		game.mu.Lock()
 		game.GameOver = true // Stop updates
@@ -214,9 +296,7 @@ func (l *Lobby) BroadcastPlayerCount() {
 	defer l.mu.Unlock()
 
 	count := len(l.clients)
-	if count < 2 {
-		// If 0 or 1, no pair mode possible really (unless waiting for someone)
-	}
+
 	msg := map[string]interface{}{
 		"type":         "lobby_stats",
 		"online_count": count,
@@ -248,6 +328,7 @@ func (l *Lobby) onClientUnregistered(client *Client) {
 	l.mu.Lock()
 	if _, ok := l.clients[client]; ok {
 		delete(l.clients, client)
+		close(client.stopCh) // Signal pump to stop
 		close(client.Send)
 	}
 	// Remove from waiting list if present

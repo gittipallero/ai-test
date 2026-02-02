@@ -52,11 +52,15 @@ func onApiWs(lobby *Lobby) http.HandlerFunc {
 			Conn:     conn,
 			Send:     make(chan []byte, 256),
 			Lobby:    lobby,
+			stopCh:   make(chan struct{}),
 		}
+
+		// Start the write pump in a separate goroutine
+		go client.writePump()
 
 		lobby.register <- client
 
-		// Handle incoming messages
+		// Handle incoming messages (Read Pump)
 		go func() {
 			defer func() {
 				lobby.unregister <- client
@@ -89,17 +93,17 @@ func onApiWs(lobby *Lobby) http.HandlerFunc {
 						ghostCount = int(countFloat)
 					}
 					startSinglePlayerGame(client, ghostCount)
-			case "update_ghost_count":
-				if countFloat, ok := msg["count"].(float64); ok {
-					if game := client.GetGame(); game != nil {
-						game.UpdateGhostCount(int(countFloat))
-						// Broadcast updated gamestate to client immediately
-						// Hold read lock to prevent data race with concurrent game.Update()
-						game.mu.RLock()
-						client.WriteJSON(game)
-						game.mu.RUnlock()
+				case "update_ghost_count":
+					if countFloat, ok := msg["count"].(float64); ok {
+						if game := client.GetGame(); game != nil {
+							game.UpdateGhostCount(int(countFloat))
+							// Broadcast updated gamestate to client immediately
+							// Hold read lock to prevent data race with concurrent game.Update()
+							game.mu.RLock()
+							client.WriteJSON(game)
+							game.mu.RUnlock()
+						}
 					}
-				}
 				}
 			}
 		}()
@@ -121,7 +125,7 @@ func onApiScore(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Using ghost count 4 as default/legacy if not provided in JSON or struct yet, 
+	// Using ghost count 4 as default/legacy if not provided in JSON or struct yet,
 	// though standard request doesn't have it yet. Will update struct later.
 	// For now, assuming default 4 for legacy endpoint use, or we add field to struct.
 	if err := db.SaveScore(req.Nickname, req.Score, 4); err != nil {
@@ -143,7 +147,7 @@ func onApiScoreboard(w http.ResponseWriter, r *http.Request) {
 	if !db.RequireDB(w) {
 		return
 	}
-	
+
 	ghosts := 4
 	// Allow query param ?ghosts=N
 	if gStr := r.URL.Query().Get("ghosts"); gStr != "" {
@@ -345,13 +349,13 @@ func startSinglePlayerGame(client *Client, ghostCount int) {
 			score := game.Score
 			game.mu.RUnlock()
 
-			if err != nil {
+			if err != nil && !errors.Is(err, errSendBufferFull) {
 				break
 			}
 
 			if gameOver {
 				// Save score
-				// Save score with ghost count from game state. 
+				// Save score with ghost count from game state.
 				// We need to access game.GhostCount.
 				if err := db.SaveScore(client.Nickname, score, game.GhostCount); err != nil {
 					fmt.Println("Failed to save score:", err)
