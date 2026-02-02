@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"log"
 	"sync"
 	"time"
@@ -16,7 +17,7 @@ type Client struct {
 	Lobby    *Lobby
 	mu       sync.RWMutex
 	Game     *GameState // Nil if in lobby/waiting; guarded by mu
-	writeMu  sync.Mutex
+	stopCh   chan struct{}
 }
 
 func (c *Client) GetGame() *GameState {
@@ -38,14 +39,74 @@ type Lobby struct {
 	games      map[*GameState]bool
 	register   chan *Client
 	unregister chan *Client
-	broadcast  chan []byte
 	mu         sync.Mutex
 }
 
 func (c *Client) WriteJSON(message interface{}) error {
-	c.writeMu.Lock()
-	defer c.writeMu.Unlock()
-	return c.Conn.WriteJSON(message)
+	b, err := json.Marshal(message)
+	if err != nil {
+		return err
+	}
+
+	select {
+	case c.Send <- b:
+		return nil
+	case <-c.stopCh:
+		return nil // Client disconnected, ignore
+	default:
+		// Buffer full, drop message or disconnect? 
+		// For now, let's try to send non-blocking or just return error if full.
+		// Actually, in a game, dropping a frame is better than blocking logic.
+		return nil
+	}
+}
+
+// writePump pumps messages from the hub to the websocket connection.
+// An application runs writePump in a per-connection goroutine.
+func (c *Client) writePump() {
+	ticker := time.NewTicker(50 * time.Second) // Ping ticker
+	defer func() {
+		ticker.Stop()
+		c.Conn.Close()
+	}()
+
+	for {
+		select {
+		case message, ok := <-c.Send:
+			c.Conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
+			if !ok {
+				// The hub closed the channel.
+				c.Conn.WriteMessage(websocket.CloseMessage, []byte{})
+				return
+			}
+
+			w, err := c.Conn.NextWriter(websocket.TextMessage)
+			if err != nil {
+				return
+			}
+			w.Write(message)
+
+			// Add queued chat messages to the current websocket message.
+			n := len(c.Send)
+			for i := 0; i < n; i++ {
+				w.Write([]byte{'\n'})
+				w.Write(<-c.Send)
+			}
+
+			if err := w.Close(); err != nil {
+				return
+			}
+
+		case <-ticker.C:
+			c.Conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
+			if err := c.Conn.WriteMessage(websocket.PingMessage, nil); err != nil {
+				return
+			}
+		
+		case <-c.stopCh:
+			return
+		}
+	}
 }
 
 func NewLobby() *Lobby {
@@ -55,7 +116,6 @@ func NewLobby() *Lobby {
 		games:      make(map[*GameState]bool),
 		register:   make(chan *Client),
 		unregister: make(chan *Client),
-		broadcast:  make(chan []byte),
 	}
 }
 
@@ -67,18 +127,6 @@ func (l *Lobby) Run() {
 
 		case client := <-l.unregister:
 			l.onClientUnregistered(client)
-
-		case message := <-l.broadcast:
-			l.mu.Lock()
-			for client := range l.clients {
-				select {
-				case client.Send <- message:
-				default:
-					close(client.Send)
-					delete(l.clients, client)
-				}
-			}
-			l.mu.Unlock()
 		}
 	}
 }
@@ -110,12 +158,11 @@ func (l *Lobby) JoinPairQueue(client *Client) {
 		msg := map[string]interface{}{
 			"type": "waiting",
 		}
-		// Use a goroutine to avoid blocking the lock
-		go func() {
-			if err := client.WriteJSON(msg); err != nil {
-				log.Printf("Error sending wait message: %v", err)
-			}
-		}()
+		// Use a goroutine to avoid blocking the lock - though WriteJSON is now non-blocking(ish)
+		// With channel, it IS safe to call directly if channel has buffer.
+		if err := client.WriteJSON(msg); err != nil {
+			log.Printf("Error sending wait message: %v", err)
+		}
 	}
 }
 
@@ -214,9 +261,7 @@ func (l *Lobby) BroadcastPlayerCount() {
 	defer l.mu.Unlock()
 
 	count := len(l.clients)
-	if count < 2 {
-		// If 0 or 1, no pair mode possible really (unless waiting for someone)
-	}
+	
 	msg := map[string]interface{}{
 		"type":         "lobby_stats",
 		"online_count": count,
@@ -249,6 +294,7 @@ func (l *Lobby) onClientUnregistered(client *Client) {
 	if _, ok := l.clients[client]; ok {
 		delete(l.clients, client)
 		close(client.Send)
+		close(client.stopCh) // Signal pump to stop
 	}
 	// Remove from waiting list if present
 	for i, c := range l.waiting {
